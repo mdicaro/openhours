@@ -129,7 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await fetch(`${API_URL}?id=${pollId}`);
         return response.json();
     };
-
+    console.log("getPoll complete");
+    
     const saveAvailability = async (pollId, email, availability) => {
         const response = await fetch(API_URL, {
             method: 'PUT',
@@ -150,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             availabilities: {}
         };
         console.log('Emails to send:', emails);
-        
+
         const response = await createPoll(pollData);
         if (response.pollId) {
             window.location.hash = `#/poll/${response.pollId}`;
