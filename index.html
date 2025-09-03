@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Poller</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Meeting Poller</h1>
+    </header>
+
+    <main id="app-container">
+        <div id="create-poll-view" class="view">
+            <h2>Create a New Poll</h2>
+            <form id="create-poll-form">
+                <label for="emails">Enter Participant Emails (comma-separated):</label>
+                <textarea id="emails" required></textarea>
+                <button type="submit">Create Poll</button>
+            </form>
+        </div>
+
+        <div id="participant-view" class="view" style="display: none;">
+            <h2>Your Availability</h2>
+            <form id="participant-form">
+                <label for="participant-email">Your Email Address:</label>
+                <input type="email" id="participant-email" required>
+                <p>Click and drag on the calendar to select all times that work for you.</p>
+                <div id="calendar-container"></div>
+                <button type="submit">Save Availability</button>
+            </form>
+        </div>
+
+        <div id="results-view" class="view" style="display: none;">
+            <h2>Poll Results</h2>
+            <div id="results-summary"></div>
+            <div id="results-calendar-container"></div>
+        </div>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

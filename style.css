@@ -1,0 +1,126 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+#app-container {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 900px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1, h2 {
+    color: #1a1a1a;
+}
+
+.view {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+textarea, input[type="email"] {
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+textarea:focus, input[type="email"]:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background-color: #007bff;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Calendar styling */
+#calendar-container, #results-calendar-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #ddd;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.day {
+    background-color: #f9f9f9;
+    padding: 10px;
+    min-height: 120px;
+    position: relative;
+    user-select: none;
+}
+
+.day-header {
+    font-weight: bold;
+    text-align: center;
+    padding: 8px;
+    background-color: #e9ecef;
+    grid-column: span 1;
+}
+
+.time-slot {
+    height: 15px; /* Represents a 30-minute block */
+    background-color: transparent;
+    border-top: 1px solid #eee;
+}
+
+.available {
+    background-color: #90ee90; /* Light green for selected availability */
+    cursor: pointer;
+}
+
+/* Hover and active states for selection */
+.time-slot:hover {
+    background-color: #d1ffd1;
+}
+
+.time-slot.selected {
+    background-color: #66bb6a;
+}
