@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const createPollForm = document.getElementById('create-poll-form');
     const participantForm = document.getElementById('participant-form');
 
+    console.log('Form element found:', createPollForm);
+
     const CALENDAR_CELLS_PER_DAY = 48; // 24 hours * 2 (30-min increments)
     const TODAY = new Date();
     const END_DATE = new Date();
@@ -139,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Handlers ---
     createPollForm.addEventListener('submit', async (e) => {
+        console.log('Form submission event triggered!');
         e.preventDefault();
         const emails = document.getElementById('emails').value.split(',').map(email => email.trim()).filter(email => email);
         const pollData = {
@@ -146,6 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
             createdAt: new Date().toISOString(),
             availabilities: {}
         };
+        console.log('Emails to send:', emails);
+        
         const response = await createPoll(pollData);
         if (response.pollId) {
             window.location.hash = `#/poll/${response.pollId}`;
