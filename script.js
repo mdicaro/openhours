@@ -1,3 +1,4 @@
+// script.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- UI Elements ---
     const createPollView = document.getElementById('create-poll-view');
@@ -10,8 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsLink = document.getElementById('results-link');
     const copyLinkBtn = document.getElementById('copy-link-btn');
     const copyResultsBtn = document.getElementById('copy-results-btn');
-    const participantEmailInput = document.getElementById('participant-email'); // Add this
-    const clearSelectionsBtn = document.getElementById('clear-selections-btn'); // Add this
+    const participantEmailInput = document.getElementById('participant-email');
+    const clearSelectionsBtn = document.getElementById('clear-selections-btn');
 
 
     let currentPollId = null;
@@ -57,13 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
-        container.className = 'calendar-container'; // Add a class for styling
+        container.className = 'calendar-container';
 
         const timeColumn = document.createElement('div');
-    timeColumn.className = 'time-column';
+        timeColumn.className = 'time-column';
 
-    const scrollWrapper = document.createElement('div');
-    scrollWrapper.className = 'calendar-scroll-wrapper';
+        const scrollWrapper = document.createElement('div');
+        scrollWrapper.className = 'calendar-scroll-wrapper';
 
         const calendar = document.createElement('div');
         calendar.className = 'calendar';
@@ -78,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const endIndex = endMinute / 30;
         const totalTimeSlots = endIndex - startIndex;
 
-        // Create Time Column
         const timeHeader = document.createElement('div');
         timeHeader.className = 'time-header';
         timeColumn.appendChild(timeHeader);
@@ -90,8 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
             timeColumn.appendChild(timeLabel);
         }
         
-        
-        // Create Day Columns
         dates.forEach(day => {
             const dayColumn = document.createElement('div');
             dayColumn.className = 'day-column';
@@ -142,12 +140,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             calendar.appendChild(dayColumn);
         });
-scrollWrapper.appendChild(calendar);
-container.appendChild(timeColumn);
-        container.appendChild(calendar);
+
+        scrollWrapper.appendChild(calendar);
+        container.appendChild(timeColumn);
+        // --- THIS IS THE FIX ---
+        container.appendChild(scrollWrapper); // Was: container.appendChild(calendar)
     };
 
     // --- Backend API Calls ---
+    // ... (rest of the file is identical to what you have)
+    // --- Event Handlers ---
+    // ...
+    // --- View Rendering & Routing ---
+    // ...
     const API_URL = '/api/poll';
 
     const createPoll = async (pollData) => {
@@ -168,12 +173,10 @@ container.appendChild(timeColumn);
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            // CHANGE: The key should be 'email' to match the backend
             body: JSON.stringify({ pollId, email, availability })
         });
         return response.json();
     };
-    // --- Event Handlers ---
     createPollForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const startDate = document.getElementById('start-date').value;
@@ -199,16 +202,13 @@ container.appendChild(timeColumn);
 
     participantForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // CHANGE: This field should represent the user's email
         const email = document.getElementById('participant-email').value;
         const selectedTimeSlots = [];
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
             selectedTimeSlots.push(slot.dataset.slotKey);
         });
 
-        // CHANGE: Pass 'email' instead of 'name'
         await saveAvailability(currentPollId, email, selectedTimeSlots);
-        // CHANGE: Save the email in localStorage to remember the user
         localStorage.setItem(`poll-${currentPollId}-email`, email);
 
         alert('Your availability has been saved!');
@@ -229,18 +229,14 @@ container.appendChild(timeColumn);
         });
     });
 
-    // Update the calendar when the email changes
     participantEmailInput.addEventListener('input', () => {
         const newEmail = participantEmailInput.value;
-        // Find any saved availability for the new email, default to an empty array
         const savedAvailability = currentPollData.availabilities[newEmail] || [];
 
-        // First, clear all currently selected slots from the calendar
         document.querySelectorAll('#calendar-container .time-slot').forEach(slot => {
             slot.classList.remove('selected');
         });
 
-        // If saved data exists for the new email, apply it to the calendar
         if (savedAvailability.length > 0) {
             savedAvailability.forEach(slotKey => {
                 const slot = document.querySelector(`#calendar-container [data-slot-key="${slotKey}"]`);
@@ -251,7 +247,6 @@ container.appendChild(timeColumn);
         }
     });
 
-    // --- View Rendering & Routing ---
     const showPollLink = (pollId) => {
         const pollUrl = `${window.location.origin}/#/poll/${pollId}`;
         const resultsUrl = `${window.location.origin}/#/results/${pollId}`;
@@ -296,10 +291,10 @@ container.appendChild(timeColumn);
 
         const allSlots = resultsCalendarContainer.querySelectorAll('.time-slot');
         allSlots.forEach(slot => {
-            const slotKey = slot.dataset.slotKey; 
+            const slotKey = slot.dataset.slotKey;
             const count = availabilityCounts[slot.dataset.slotKey] || 0;
             const availableEmails = slotToEmailsMap[slotKey] || [];
-            const emailList = availableEmails.join('\n'); 
+            const emailList = availableEmails.join('\n');
             const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
 
             slot.title = `${count} Available\n\n${emailList}`;
@@ -331,11 +326,9 @@ container.appendChild(timeColumn);
             showView(participantView);
             currentPollData = await getPoll(currentPollId);
             if (currentPollData) {
-                // CHANGE: Look for email in localStorage
                 const participantEmail = localStorage.getItem(`poll-${currentPollId}-email`);
                 let initialAvailability = [];
                 if (participantEmail && currentPollData.availabilities[participantEmail]) {
-                    // CHANGE: Set the value of the email input
                     document.getElementById('participant-email').value = participantEmail;
                     initialAvailability = currentPollData.availabilities[participantEmail];
                 }

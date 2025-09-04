@@ -118,6 +118,8 @@ button:hover {
     flex-grow: 1;
     border-radius: 8px;
     background-color: #ddd;
+    /* --- THIS IS THE FIX --- */
+    min-width: 0; /* Prevents the flex item from overflowing its container */
 }
 
 .calendar {
@@ -127,11 +129,10 @@ button:hover {
     gap: 1px;
     border: none;
     user-select: none;
-    
 }
 
 .time-column {
-    grid-column: 1;
+    /* grid-column: 1; <-- REMOVE this obsolete property */
     display: flex;
     flex-direction: column;
     background-color: #f9f9f9;
@@ -181,7 +182,6 @@ button:hover {
     height: 30px; 
     background-color: #f9f9f9;
     box-sizing: border-box;
-    /* Use a top border to create the grid lines */
     border-top: 1px solid #ddd;
 }
 
@@ -190,12 +190,12 @@ button:hover {
 }
 
 /* Results Calendar Colors */
-.results-calendar .time-slot.level-5 { background-color: #28a745; } /* All available */
+.results-calendar .time-slot.level-5 { background-color: #28a745; }
 .results-calendar .time-slot.level-4 { background-color: #6c757d; }
-.results-calendar .time-slot.level-3 { background-color: #ffc107; } /* Most available */
-.results-calendar .time-slot.level-2 { background-color: #fd7e14; } /* Some available */
-.results-calendar .time-slot.level-1 { background-color: #dc3545; } /* Few available */
-.results-calendar .time-slot.level-0 { background-color: #f9f9f9; } /* No one available */
+.results-calendar .time-slot.level-3 { background-color: #ffc107; }
+.results-calendar .time-slot.level-2 { background-color: #fd7e14; }
+.results-calendar .time-slot.level-1 { background-color: #dc3545; }
+.results-calendar .time-slot.level-0 { background-color: #f9f9f9; }
 
 .results-calendar .time-slot {
     text-align: center;
@@ -210,7 +210,7 @@ button:hover {
 }
 
 #clear-selections-btn {
-    background-color: #6c757d; /* Gray */
+    background-color: #6c757d;
 }
 #clear-selections-btn:hover {
     background-color: #5a6268;
