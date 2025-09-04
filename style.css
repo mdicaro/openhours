@@ -121,7 +121,7 @@ button:hover {
     gap: 1px;
     border: none;
     user-select: none;
-    position: relative;
+    
 }
 
 .time-column {
@@ -162,22 +162,20 @@ button:hover {
 
 .time-label {
     height: 30px;
-    line-height: 30px;
+    line-height: 29px;
     padding: 0 5px;
     font-size: 12px;
-    /* --- CHANGES START --- */
     box-sizing: border-box;
-    border-top: 1px solid #ddd;
-    /* --- CHANGES END --- */
+    border-top: 1px solid #f9f9f9;
+    
 }
 
 .time-slot {
     height: 30px; /* Represents a 30-minute block */
     background-color: #f9f9f9;
-    /* --- CHANGES START --- */
     box-sizing: border-box;
     border-top: 1px solid #ddd;
-    /* --- CHANGES END --- */
+    
 }
 
 .time-slot.selected {
