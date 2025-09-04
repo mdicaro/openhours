@@ -110,6 +110,8 @@ button:hover {
 /* New Calendar Styles */
 .calendar-wrapper {
     overflow-x: auto;
+    background-color: #aaa;
+    border-radius: 8px;
 }
 
 .calendar {
@@ -117,9 +119,8 @@ button:hover {
     grid-auto-flow: column;
     grid-auto-columns: 80px;
     gap: 1px;
-    background-color: #aaa;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    /* border: 1px solid #ddd; */
+    border: none;
     user-select: none;
     position: relative;
 }
