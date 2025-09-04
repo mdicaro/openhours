@@ -1,27 +1,12 @@
-import fs from 'fs';
-import path from 'path';
+import { Redis } from '@upstash/redis';
 
-// Note: This is for a simple example.
-// In a real production app, you would use a proper database.
-const DB_PATH = path.join(process.cwd(), 'data/polls.json');
-
-const getPolls = () => {
-  try {
-    const data = fs.readFileSync(DB_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // If file doesn't exist, start with an empty object
-    return {};
-  }
-};
-
-const savePolls = (polls) => {
-  fs.writeFileSync(DB_PATH, JSON.stringify(polls, null, 2), 'utf-8');
-};
+// The environment variables will be automatically picked up by Vercel
+const redis = new Redis({
+  url: process.env.REDIS_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 export default async function handler(req, res) {
-  const polls = getPolls();
-
   if (req.method === 'POST') {
     // Create a new poll
     const { emails } = req.body;
@@ -31,16 +16,20 @@ export default async function handler(req, res) {
       availabilities: {},
       createdAt: new Date().toISOString()
     };
-    polls[newPollId] = newPoll;
-    savePolls(polls);
+
+    await redis.set(newPollId, newPoll);
     res.status(201).json({ pollId: newPollId });
-  
+
   } else if (req.method === 'PUT') {
     // Update participant availability
     const { pollId, email, availability } = req.body;
-    if (polls[pollId]) {
-      polls[pollId].availabilities[email] = availability;
-      savePolls(polls);
+    const key = `${pollId}`;
+    const poll = await redis.get(key);
+
+    if (poll) {
+      // Update the nested object
+      poll.availabilities[email] = availability;
+      await redis.set(key, poll);
       res.status(200).json({ success: true });
     } else {
       res.status(404).json({ error: 'Poll not found' });
@@ -49,8 +38,9 @@ export default async function handler(req, res) {
   } else if (req.method === 'GET') {
     // Get a specific poll's data
     const { id } = req.query;
-    if (polls[id]) {
-      res.status(200).json(polls[id]);
+    const poll = await redis.get(id);
+    if (poll) {
+      res.status(200).json(poll);
     } else {
       res.status(404).json({ error: 'Poll not found' });
     }
