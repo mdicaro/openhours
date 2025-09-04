@@ -1,13 +1,21 @@
+// poll.js
+
 import { Redis } from '@upstash/redis';
 
 const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { emails } = req.body;
+    // CHANGE: Destructure all necessary fields from the body
+    const { emails, startDate, endDate, startTime, endTime } = req.body;
     const newPollId = `poll-${Date.now()}`;
     const newPoll = {
       emails,
+      // ADD: Include all poll settings in the object saved to Redis
+      startDate,
+      endDate,
+      startTime,
+      endTime,
       availabilities: {},
       createdAt: new Date().toISOString()
     };
@@ -16,11 +24,13 @@ export default async function handler(req, res) {
     res.status(201).json({ pollId: newPollId });
 
   } else if (req.method === 'PUT') {
-    const { pollId, email, availability } = req.body;
+    // CHANGE: Use 'name' instead of 'email' to match the frontend form
+    const { pollId, name, availability } = req.body;
     const poll = await redis.get(pollId);
 
     if (poll) {
-      poll.availabilities[email] = availability;
+      // CHANGE: Use 'name' as the key for the availability entry
+      poll.availabilities[name] = availability;
       await redis.set(pollId, poll);
       res.status(200).json({ success: true });
     } else {

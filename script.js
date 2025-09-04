@@ -155,15 +155,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     };
 
-    const saveAvailability = async (pollId, name, availability) => {
+    const saveAvailability = async (pollId, email, availability) => {
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pollId, name, availability })
+            // CHANGE: The key should be 'email' to match the backend
+            body: JSON.stringify({ pollId, email, availability })
         });
         return response.json();
     };
-
     // --- Event Handlers ---
     createPollForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
             createdAt: new Date().toISOString(),
             availabilities: {}
         };
-        
+
         const response = await createPoll(pollData);
         if (response.pollId) {
             currentPollId = response.pollId;
@@ -192,14 +192,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     participantForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('participant-name').value;
+        // CHANGE: This field should represent the user's email
+        const email = document.getElementById('participant-email').value;
         const selectedTimeSlots = [];
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
             selectedTimeSlots.push(slot.dataset.slotKey);
         });
 
-        await saveAvailability(currentPollId, name, selectedTimeSlots);
-        localStorage.setItem(`poll-${currentPollId}-name`, name);
+        // CHANGE: Pass 'email' instead of 'name'
+        await saveAvailability(currentPollId, email, selectedTimeSlots);
+        // CHANGE: Save the email in localStorage to remember the user
+        localStorage.setItem(`poll-${currentPollId}-email`, email);
 
         alert('Your availability has been saved!');
         handleRouting();
@@ -233,16 +236,16 @@ document.addEventListener('DOMContentLoaded', () => {
             acc[slotKey] = (acc[slotKey] || 0) + 1;
             return acc;
         }, {});
-        
+
         const totalParticipants = Object.keys(pollData.availabilities).length;
-        
+
         resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} of ${pollData.emails.length} people have responded.</p>`;
-        
+
         createCalendar(
-            'results-calendar-container', 
-            pollData.startDate, 
-            pollData.endDate, 
-            pollData.startTime, 
+            'results-calendar-container',
+            pollData.startDate,
+            pollData.endDate,
+            pollData.startTime,
             pollData.endTime,
             false
         );
@@ -251,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allSlots.forEach(slot => {
             const count = availabilityCounts[slot.dataset.slotKey] || 0;
             const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
-            
+
             slot.title = `${count} of ${totalParticipants} available`;
 
             if (count > 0) {
@@ -281,11 +284,13 @@ document.addEventListener('DOMContentLoaded', () => {
             showView(participantView);
             currentPollData = await getPoll(currentPollId);
             if (currentPollData) {
-                const participantName = localStorage.getItem(`poll-${currentPollId}-name`);
+                // CHANGE: Look for email in localStorage
+                const participantEmail = localStorage.getItem(`poll-${currentPollId}-email`);
                 let initialAvailability = [];
-                if (participantName && currentPollData.availabilities[participantName]) {
-                    document.getElementById('participant-name').value = participantName;
-                    initialAvailability = currentPollData.availabilities[participantName];
+                if (participantEmail && currentPollData.availabilities[participantEmail]) {
+                    // CHANGE: Set the value of the email input
+                    document.getElementById('participant-email').value = participantEmail;
+                    initialAvailability = currentPollData.availabilities[participantEmail];
                 }
                 createCalendar(
                     'calendar-container',
@@ -308,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showView(createPollView);
         }
     };
-    
+
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
