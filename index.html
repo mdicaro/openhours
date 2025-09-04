@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Poller</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <header>
@@ -16,12 +18,10 @@
         <div id="create-poll-view" class="view">
             <h2>Create a New Poll</h2>
             <form id="create-poll-form">
-                <label for="emails">Enter Participant Emails (comma-separated):</label>
-                <textarea id="emails" required></textarea>
-                
+
                 <label for="start-date">Poll Start Date:</label>
                 <input type="date" id="start-date" required>
-                
+
                 <label for="end-date">Poll End Date:</label>
                 <input type="date" id="end-date" required>
 
@@ -55,8 +55,8 @@
         <div id="participant-view" class="view" style="display: none;">
             <h2>Your Availability</h2>
             <form id="participant-form">
-                <label for="participant-name">Your Name:</label>
-                <input type="text" id="participant-name" required>
+                <label for="participant-email">Your Email:</label>
+                <input type="email" id="participant-email" required>
                 <p>Click and drag on the calendar to select all times that work for you.</p>
                 <div id="calendar-container" class="calendar-wrapper"></div>
                 <button type="submit">Save Availability</button>
@@ -73,4 +73,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- UI Elements ---
-    const appContainer = document.getElementById('app-container');
     const createPollView = document.getElementById('create-poll-view');
     const pollLinkView = document.getElementById('poll-link-view');
     const participantView = document.getElementById('participant-view');
@@ -167,14 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Handlers ---
     createPollForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const emails = document.getElementById('emails').value.split(',').map(email => email.trim()).filter(email => email);
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         const startTime = document.getElementById('start-time').value;
         const endTime = document.getElementById('end-time').value;
 
         const pollData = {
-            emails,
             startDate,
             endDate,
             startTime,
@@ -239,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const totalParticipants = Object.keys(pollData.availabilities).length;
 
-        resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} of ${pollData.emails.length} people have responded.</p>`;
+        resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} people have responded.</p>`;
 
         createCalendar(
             'results-calendar-container',

@@ -7,11 +7,9 @@ const redis = Redis.fromEnv();
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     // CHANGE: Destructure all necessary fields from the body
-    const { emails, startDate, endDate, startTime, endTime } = req.body;
+    const { startDate, endDate, startTime, endTime } = req.body;
     const newPollId = `poll-${Date.now()}`;
     const newPoll = {
-      emails,
-      // ADD: Include all poll settings in the object saved to Redis
       startDate,
       endDate,
       startTime,
@@ -24,13 +22,11 @@ export default async function handler(req, res) {
     res.status(201).json({ pollId: newPollId });
 
   } else if (req.method === 'PUT') {
-    // CHANGE: Use 'name' instead of 'email' to match the frontend form
-    const { pollId, name, availability } = req.body;
+    const { pollId, email, availability } = req.body;
     const poll = await redis.get(pollId);
 
     if (poll) {
-      // CHANGE: Use 'name' as the key for the availability entry
-      poll.availabilities[name] = availability;
+      poll.availabilities[email] = availability;
       await redis.set(pollId, poll);
       res.status(200).json({ success: true });
     } else {
