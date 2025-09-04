@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsLink = document.getElementById('results-link');
     const copyLinkBtn = document.getElementById('copy-link-btn');
     const copyResultsBtn = document.getElementById('copy-results-btn');
+    const participantEmailInput = document.getElementById('participant-email'); // Add this
+    const clearSelectionsBtn = document.getElementById('clear-selections-btn'); // Add this
+
 
     let currentPollId = null;
     let currentPollData = null;
@@ -211,6 +214,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     copyResultsBtn.addEventListener('click', () => {
         copyToClipboard(resultsLink.href, copyResultsBtn);
+    });
+
+    clearSelectionsBtn.addEventListener('click', () => {
+        document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
+            slot.classList.remove('selected');
+        });
+    });
+
+    // Update the calendar when the email changes
+    participantEmailInput.addEventListener('input', () => {
+        const newEmail = participantEmailInput.value;
+        // Find any saved availability for the new email, default to an empty array
+        const savedAvailability = currentPollData.availabilities[newEmail] || [];
+
+        // First, clear all currently selected slots from the calendar
+        document.querySelectorAll('#calendar-container .time-slot').forEach(slot => {
+            slot.classList.remove('selected');
+        });
+
+        // If saved data exists for the new email, apply it to the calendar
+        if (savedAvailability.length > 0) {
+            savedAvailability.forEach(slotKey => {
+                const slot = document.querySelector(`#calendar-container [data-slot-key="${slotKey}"]`);
+                if (slot) {
+                    slot.classList.add('selected');
+                }
+            });
+        }
     });
 
     // --- View Rendering & Routing ---

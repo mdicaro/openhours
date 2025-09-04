@@ -117,8 +117,8 @@ button:hover {
     grid-auto-flow: column;
     grid-auto-columns: 80px;
     gap: 1px;
-    /*background-color: #ddd;*/
-    border: none; /*1px solid #ddd*/
+    background-color: #aaa;
+    border: 1px solid #ddd;
     border-radius: 8px;
     user-select: none;
     position: relative;
@@ -170,7 +170,8 @@ button:hover {
 .time-slot {
     height: 30px; /* Represents a 30-minute block */
     background-color: #f9f9f9;
-    border-top: none; /*1px solid #eee;*/
+    gap: 1px;
+    border-top: 1px solid #eee;
 }
 
 .time-slot.selected {
@@ -189,4 +190,17 @@ button:hover {
     text-align: center;
     font-size: 12px;
     line-height: 30px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#clear-selections-btn {
+    background-color: #6c757d; /* Gray */
+}
+#clear-selections-btn:hover {
+    background-color: #5a6268;
 }
