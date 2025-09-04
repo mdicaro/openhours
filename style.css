@@ -117,8 +117,8 @@ button:hover {
     grid-auto-flow: column;
     grid-auto-columns: 80px;
     gap: 1px;
-    background-color: #ddd;
-    border: 1px solid #ddd;
+    /*background-color: #ddd;*/
+    border: none; /*1px solid #ddd*/
     border-radius: 8px;
     user-select: none;
     position: relative;
@@ -170,7 +170,7 @@ button:hover {
 .time-slot {
     height: 30px; /* Represents a 30-minute block */
     background-color: #f9f9f9;
-    border-top: 1px solid #eee;
+    border-top: none; /*1px solid #eee;*/
 }
 
 .time-slot.selected {

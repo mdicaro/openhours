@@ -233,7 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
             acc[slotKey] = (acc[slotKey] || 0) + 1;
             return acc;
         }, {});
-
+        const slotToEmailsMap = {};
+        for (const email in pollData.availabilities) {
+            const selectedSlots = pollData.availabilities[email];
+            selectedSlots.forEach(slotKey => {
+                if (!slotToEmailsMap[slotKey]) {
+                    slotToEmailsMap[slotKey] = [];
+                }
+                slotToEmailsMap[slotKey].push(email);
+            });
+        }
         const totalParticipants = Object.keys(pollData.availabilities).length;
 
         resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} people have responded.</p>`;
@@ -249,10 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const allSlots = resultsCalendarContainer.querySelectorAll('.time-slot');
         allSlots.forEach(slot => {
+            const slotKey = slot.dataset.slotKey; 
             const count = availabilityCounts[slot.dataset.slotKey] || 0;
+            const availableEmails = slotToEmailsMap[slotKey] || [];
+            const emailList = availableEmails.join('\n'); 
             const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
 
-            slot.title = `${count} of ${totalParticipants} available`;
+            slot.title = `${count} Available\n\n${emailList}`;
 
             if (count > 0) {
                 slot.textContent = count;
