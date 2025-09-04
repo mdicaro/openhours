@@ -57,6 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
+        container.className = 'calendar-container'; // Add a class for styling
+
+        const timeColumn = document.createElement('div');
+    timeColumn.className = 'time-column';
+
+    const scrollWrapper = document.createElement('div');
+    scrollWrapper.className = 'calendar-scroll-wrapper';
+
         const calendar = document.createElement('div');
         calendar.className = 'calendar';
         if (containerId.includes('results')) {
@@ -71,20 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalTimeSlots = endIndex - startIndex;
 
         // Create Time Column
-        const timeColumn = document.createElement('div');
-        timeColumn.className = 'time-column';
         const timeHeader = document.createElement('div');
         timeHeader.className = 'time-header';
         timeColumn.appendChild(timeHeader);
 
-        for (let i = 0; i < totalTimeSlots; i++) {
+        for (let i = 0; i <= totalTimeSlots; i++) {
             const timeLabel = document.createElement('div');
             timeLabel.className = 'time-label';
             timeLabel.textContent = formatTime(startIndex + i);
             timeColumn.appendChild(timeLabel);
         }
-        calendar.appendChild(timeColumn);
-
+        
+        
         // Create Day Columns
         dates.forEach(day => {
             const dayColumn = document.createElement('div');
@@ -136,7 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             calendar.appendChild(dayColumn);
         });
-
+scrollWrapper.appendChild(calendar);
+container.appendChild(timeColumn);
         container.appendChild(calendar);
     };
 

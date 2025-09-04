@@ -107,11 +107,17 @@ button:hover {
     color: #0056b3;
 }
 
-/* New Calendar Styles */
-.calendar-wrapper {
+/* Calendar Styles */
+.calendar-container {
+    display: flex;
+    position: relative;
+}
+
+.calendar-scroll-wrapper {
     overflow-x: auto;
-    background-color: #ddd; /* Use a color that will look like grid lines */
+    flex-grow: 1;
     border-radius: 8px;
+    background-color: #ddd;
 }
 
 .calendar {
@@ -161,21 +167,22 @@ button:hover {
 }
 
 .time-label {
-    height: 30px;
-    line-height: 29px;
-    padding: 0 5px;
+    height: 0; /* Collapse the element's height */
+    margin-bottom: 30px; /* Use margin to create the 30px vertical space */
     font-size: 12px;
-    box-sizing: border-box;
-    border-top: 1px solid #f9f9f9;
-    
+    text-align: right;
+    padding-right: 10px;
+    color: #555;
+    /* This transform pulls the text up to be vertically centered on the line above it */
+    transform: translateY(-50%);
 }
 
 .time-slot {
-    height: 30px; /* Represents a 30-minute block */
+    height: 30px; 
     background-color: #f9f9f9;
     box-sizing: border-box;
+    /* Use a top border to create the grid lines */
     border-top: 1px solid #ddd;
-    
 }
 
 .time-slot.selected {
