@@ -134,7 +134,7 @@ button:hover {
 .time-column {
     display: flex;
     flex-direction: column;
-    background-color: #f9f9f9;
+    background-color: #e9ecef;
     z-index: 2;
     position: sticky;
     left: 0;
@@ -180,7 +180,7 @@ button:hover {
 }
 
 .time-label:first-of-type {
-    margin-top: 40px;
+    margin-top: 29px;
 }
 
 .time-slot {
