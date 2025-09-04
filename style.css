@@ -118,8 +118,8 @@ button:hover {
     flex-grow: 1;
     border-radius: 8px;
     background-color: #ddd;
-    /* --- THIS IS THE FIX --- */
     min-width: 0; /* Prevents the flex item from overflowing its container */
+    border-radius: 0 8px 8px 0;
 }
 
 .calendar {
@@ -132,13 +132,14 @@ button:hover {
 }
 
 .time-column {
-    /* grid-column: 1; <-- REMOVE this obsolete property */
     display: flex;
     flex-direction: column;
     background-color: #f9f9f9;
     z-index: 2;
     position: sticky;
     left: 0;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
 }
 
 .time-header, .day-header {
@@ -176,6 +177,10 @@ button:hover {
     color: #555;
     /* This transform pulls the text up to be vertically centered on the line above it */
     transform: translateY(-50%);
+}
+
+.time-label:first-of-type {
+    margin-top: 40px;
 }
 
 .time-slot {

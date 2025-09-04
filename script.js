@@ -79,10 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const endIndex = endMinute / 30;
         const totalTimeSlots = endIndex - startIndex;
 
-        const timeHeader = document.createElement('div');
-        timeHeader.className = 'time-header';
-        timeColumn.appendChild(timeHeader);
-
         for (let i = 0; i <= totalTimeSlots; i++) {
             const timeLabel = document.createElement('div');
             timeLabel.className = 'time-label';
