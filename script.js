@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await fetch(`${API_URL}?id=${pollId}`);
         return response.json();
     };
+    
     console.log("getPoll complete");
     
     const saveAvailability = async (pollId, email, availability) => {
