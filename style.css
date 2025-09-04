@@ -47,7 +47,7 @@ label {
     font-weight: 600;
 }
 
-textarea, input[type="email"] {
+textarea, input[type="email"], input[type="text"], input[type="date"], input[type="time"] {
     padding: 12px;
     margin-bottom: 20px;
     border: 1px solid #ddd;
@@ -56,9 +56,21 @@ textarea, input[type="email"] {
     transition: border-color 0.3s;
 }
 
-textarea:focus, input[type="email"]:focus {
+textarea:focus, input[type="email"]:focus, input[type="text"]:focus, input[type="date"]:focus, input[type="time"]:focus {
     outline: none;
     border-color: #007bff;
+}
+
+.time-range-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 button {
@@ -77,50 +89,104 @@ button:hover {
     background-color: #0056b3;
 }
 
-/* Calendar styling */
-#calendar-container, #results-calendar-container {
+.link-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    background-color: #e9ecef;
+    border-radius: 8px;
+    padding: 10px 15px;
+}
+
+.link-container a {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #0056b3;
+}
+
+/* New Calendar Styles */
+.calendar-wrapper {
+    overflow-x: auto;
+}
+
+.calendar {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 80px;
     gap: 1px;
     background-color: #ddd;
     border: 1px solid #ddd;
     border-radius: 8px;
-    overflow: hidden;
-    margin-top: 20px;
-}
-
-.day {
-    background-color: #f9f9f9;
-    padding: 10px;
-    min-height: 120px;
-    position: relative;
     user-select: none;
+    position: relative;
 }
 
-.day-header {
+.time-column {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    z-index: 2;
+    position: sticky;
+    left: 0;
+}
+
+.time-header, .day-header {
+    background-color: #e9ecef;
     font-weight: bold;
     text-align: center;
     padding: 8px;
-    background-color: #e9ecef;
-    grid-column: span 1;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.time-header {
+    height: 40px; /* Aligns with day header height */
+}
+
+.day-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 80px;
+}
+
+.day-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.time-label {
+    height: 30px;
+    line-height: 30px;
+    padding: 0 5px;
+    font-size: 12px;
 }
 
 .time-slot {
-    height: 15px; /* Represents a 30-minute block */
-    background-color: transparent;
+    height: 30px; /* Represents a 30-minute block */
+    background-color: #f9f9f9;
     border-top: 1px solid #eee;
-}
-
-.available {
-    background-color: #90ee90; /* Light green for selected availability */
-    cursor: pointer;
-}
-
-/* Hover and active states for selection */
-.time-slot:hover {
-    background-color: #d1ffd1;
 }
 
 .time-slot.selected {
     background-color: #66bb6a;
+}
+
+/* Results Calendar Colors */
+.results-calendar .time-slot.level-5 { background-color: #28a745; } /* All available */
+.results-calendar .time-slot.level-4 { background-color: #6c757d; }
+.results-calendar .time-slot.level-3 { background-color: #ffc107; } /* Most available */
+.results-calendar .time-slot.level-2 { background-color: #fd7e14; } /* Some available */
+.results-calendar .time-slot.level-1 { background-color: #dc3545; } /* Few available */
+.results-calendar .time-slot.level-0 { background-color: #f9f9f9; } /* No one available */
+
+.results-calendar .time-slot {
+    text-align: center;
+    font-size: 12px;
+    line-height: 30px;
 }

@@ -1,19 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- UI Elements ---
     const appContainer = document.getElementById('app-container');
     const createPollView = document.getElementById('create-poll-view');
+    const pollLinkView = document.getElementById('poll-link-view');
     const participantView = document.getElementById('participant-view');
     const resultsView = document.getElementById('results-view');
     const createPollForm = document.getElementById('create-poll-form');
     const participantForm = document.getElementById('participant-form');
-
-    console.log('Form element found:', createPollForm);
-
-    const CALENDAR_CELLS_PER_DAY = 48; // 24 hours * 2 (30-min increments)
-    const TODAY = new Date();
-    const END_DATE = new Date();
-    END_DATE.setMonth(TODAY.getMonth() + 2); // Show upcoming days for two months
+    const pollLink = document.getElementById('poll-link');
+    const resultsLink = document.getElementById('results-link');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const copyResultsBtn = document.getElementById('copy-results-btn');
 
     let currentPollId = null;
+    let currentPollData = null;
 
     // --- Helper Functions ---
     const showView = (viewElement) => {
@@ -23,78 +23,100 @@ document.addEventListener('DOMContentLoaded', () => {
         viewElement.style.display = 'block';
     };
 
-    const formatDate = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+    const getDatesInRange = (startDate, endDate) => {
+        const dates = [];
+        let currentDate = new Date(startDate);
+        while (currentDate <= new Date(endDate)) {
+            dates.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
     };
 
-    const getDayName = (date) => {
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+    const formatTime = (timeIndex) => {
+        const hour = Math.floor(timeIndex / 2);
+        const minutes = (timeIndex % 2) * 30;
+        return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    };
+
+    const copyToClipboard = (text, btn) => {
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy text:', err);
+        });
     };
 
     // --- Calendar UI Logic ---
-    const createCalendar = (containerId, isInteractive = false, initialAvailability = []) => {
+    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
         const container = document.getElementById(containerId);
-        container.innerHTML = ''; // Clear previous calendar
-
-        const headerRow = document.createElement('div');
-        headerRow.style.display = 'contents';
-
-        const timeColumn = document.createElement('div');
-        timeColumn.className = 'day-header';
-        timeColumn.textContent = 'Time';
-        headerRow.appendChild(timeColumn);
-        container.appendChild(headerRow);
-
-        let currentDate = new Date(TODAY);
-        const dates = [];
-
-        while (currentDate <= END_DATE) {
-            dates.push(new Date(currentDate));
-            const dayHeader = document.createElement('div');
-            dayHeader.className = 'day-header';
-            dayHeader.textContent = `${getDayName(currentDate)} ${currentDate.getDate()}`;
-            headerRow.appendChild(dayHeader);
-            currentDate.setDate(currentDate.getDate() + 1);
+        container.innerHTML = '';
+        const calendar = document.createElement('div');
+        calendar.className = 'calendar';
+        if (containerId.includes('results')) {
+            calendar.classList.add('results-calendar');
         }
 
-        for (let i = 0; i < CALENDAR_CELLS_PER_DAY; i++) {
-            const timeCell = document.createElement('div');
-            timeCell.className = 'time-slot';
-            const hour = Math.floor(i / 2);
-            const minutes = (i % 2) * 30;
-            timeCell.textContent = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-            timeCell.style.fontWeight = 'bold';
-            timeCell.style.border = 'none';
-            container.appendChild(timeCell);
+        const dates = getDatesInRange(startDate, endDate);
+        const startMinute = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+        const endMinute = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+        const startIndex = startMinute / 30;
+        const endIndex = endMinute / 30;
+        const totalTimeSlots = endIndex - startIndex;
 
-            dates.forEach((day, dayIndex) => {
-                const daySlot = document.createElement('div');
-                daySlot.className = 'time-slot';
-                daySlot.dataset.date = formatDate(day);
-                daySlot.dataset.time = i;
+        // Create Time Column
+        const timeColumn = document.createElement('div');
+        timeColumn.className = 'time-column';
+        const timeHeader = document.createElement('div');
+        timeHeader.className = 'time-header';
+        timeColumn.appendChild(timeHeader);
 
-                if (initialAvailability.includes(`${formatDate(day)}-${i}`)) {
-                    daySlot.classList.add('available');
-                }
-                
+        for (let i = 0; i < totalTimeSlots; i++) {
+            const timeLabel = document.createElement('div');
+            timeLabel.className = 'time-label';
+            timeLabel.textContent = formatTime(startIndex + i);
+            timeColumn.appendChild(timeLabel);
+        }
+        calendar.appendChild(timeColumn);
+
+        // Create Day Columns
+        dates.forEach(day => {
+            const dayColumn = document.createElement('div');
+            dayColumn.className = 'day-column';
+
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = `${day.toLocaleDateString('en-US', { weekday: 'short' })} ${day.getDate()}`;
+            dayColumn.appendChild(dayHeader);
+
+            for (let i = 0; i < totalTimeSlots; i++) {
+                const timeSlot = document.createElement('div');
+                timeSlot.className = 'time-slot';
+                const timeIndex = startIndex + i;
+                const slotKey = `${day.toISOString().slice(0, 10)}-${timeIndex}`;
+                timeSlot.dataset.slotKey = slotKey;
+
                 if (isInteractive) {
-                    daySlot.addEventListener('mousedown', (e) => {
+                    if (initialAvailability.includes(slotKey)) {
+                        timeSlot.classList.add('selected');
+                    }
+                    timeSlot.addEventListener('mousedown', (e) => {
                         e.preventDefault();
-                        const isSelected = e.target.classList.contains('selected');
+                        const startState = e.target.classList.toggle('selected');
                         let isDragging = true;
-                        e.target.classList.toggle('selected');
-                        const startState = e.target.classList.contains('selected');
 
                         const handleMouseMove = (moveEvent) => {
                             if (!isDragging) return;
-                            if (moveEvent.target.classList.contains('time-slot')) {
+                            const target = moveEvent.target.closest('.time-slot');
+                            if (target) {
                                 if (startState) {
-                                    moveEvent.target.classList.add('selected');
+                                    target.classList.add('selected');
                                 } else {
-                                    moveEvent.target.classList.remove('selected');
+                                    target.classList.remove('selected');
                                 }
                             }
                         };
@@ -108,13 +130,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.addEventListener('mouseup', handleMouseUp);
                     });
                 }
-                container.appendChild(daySlot);
-            });
-        }
+                dayColumn.appendChild(timeSlot);
+            }
+            calendar.appendChild(dayColumn);
+        });
+
+        container.appendChild(calendar);
     };
 
     // --- Backend API Calls ---
-    const API_URL = '/api/poll'; // This is a convention for Vercel Serverless Functions
+    const API_URL = '/api/poll';
 
     const createPoll = async (pollData) => {
         const response = await fetch(API_URL, {
@@ -130,160 +155,160 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     };
 
-    console.log("getPoll complete", getPoll);
-    
-    const saveAvailability = async (pollId, email, availability) => {
+    const saveAvailability = async (pollId, name, availability) => {
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pollId, email, availability })
+            body: JSON.stringify({ pollId, name, availability })
         });
         return response.json();
     };
 
     // --- Event Handlers ---
     createPollForm.addEventListener('submit', async (e) => {
-        console.log('Form submission event triggered!');
         e.preventDefault();
         const emails = document.getElementById('emails').value.split(',').map(email => email.trim()).filter(email => email);
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        const startTime = document.getElementById('start-time').value;
+        const endTime = document.getElementById('end-time').value;
+
         const pollData = {
             emails,
+            startDate,
+            endDate,
+            startTime,
+            endTime,
             createdAt: new Date().toISOString(),
             availabilities: {}
         };
-        console.log('Emails to send:', emails);
-
+        
         const response = await createPoll(pollData);
         if (response.pollId) {
-            window.location.hash = `#/poll/${response.pollId}`;
+            currentPollId = response.pollId;
+            showPollLink(response.pollId);
         }
     });
 
     participantForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('participant-email').value;
+        const name = document.getElementById('participant-name').value;
         const selectedTimeSlots = [];
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
-            selectedTimeSlots.push(`${slot.dataset.date}-${slot.dataset.time}`);
+            selectedTimeSlots.push(slot.dataset.slotKey);
         });
 
-        await saveAvailability(currentPollId, email, selectedTimeSlots);
+        await saveAvailability(currentPollId, name, selectedTimeSlots);
+        localStorage.setItem(`poll-${currentPollId}-name`, name);
 
         alert('Your availability has been saved!');
-        // Reload participant view to show updated selections
-        window.location.reload(); 
+        handleRouting();
     });
 
-    // --- Routing and View Management ---
-    const handleRouting = async () => {
-        const hash = window.location.hash;
-        if (hash.startsWith('#/poll/')) {
-            const pollId = hash.substring(7);
-            currentPollId = pollId;
-            showView(participantView);
-            const pollData = await getPoll(pollId);
-            if (pollData) {
-                const participantEmail = localStorage.getItem(`poll-${pollId}-email`);
-                let initialAvailability = [];
-                if (participantEmail && pollData.availabilities[participantEmail]) {
-                    document.getElementById('participant-email').value = participantEmail;
-                    initialAvailability = pollData.availabilities[participantEmail];
-                }
-                createCalendar('calendar-container', true, initialAvailability);
-            }
-        } else if (hash.startsWith('#/results/')) {
-            const pollId = hash.substring(10);
-            showView(resultsView);
-            const pollData = await getPoll(pollId);
-            if (pollData) {
-                renderResults(pollData);
-            }
-        } else {
-            showView(createPollView);
-            createCalendar('calendar-container', true);
-        }
+    copyLinkBtn.addEventListener('click', () => {
+        copyToClipboard(pollLink.href, copyLinkBtn);
+    });
+
+    copyResultsBtn.addEventListener('click', () => {
+        copyToClipboard(resultsLink.href, copyResultsBtn);
+    });
+
+    // --- View Rendering & Routing ---
+    const showPollLink = (pollId) => {
+        const pollUrl = `${window.location.origin}/#/poll/${pollId}`;
+        const resultsUrl = `${window.location.origin}/#/results/${pollId}`;
+        pollLink.href = pollUrl;
+        pollLink.textContent = pollUrl;
+        resultsLink.href = resultsUrl;
+        resultsLink.textContent = resultsUrl;
+        showView(pollLinkView);
     };
-    
-    // --- Results View Rendering ---
+
     const renderResults = (pollData) => {
         const resultsSummary = document.getElementById('results-summary');
-        const resultsCalendar = document.getElementById('results-calendar-container');
+        const resultsCalendarContainer = document.getElementById('results-calendar-container');
 
         const allAvailabilities = Object.values(pollData.availabilities).flat();
-        const availabilityCounts = allAvailabilities.reduce((acc, slot) => {
-            acc[slot] = (acc[slot] || 0) + 1;
+        const availabilityCounts = allAvailabilities.reduce((acc, slotKey) => {
+            acc[slotKey] = (acc[slotKey] || 0) + 1;
             return acc;
         }, {});
         
-        const totalParticipants = pollData.emails.length;
+        const totalParticipants = Object.keys(pollData.availabilities).length;
+        
+        resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} of ${pollData.emails.length} people have responded.</p>`;
+        
+        createCalendar(
+            'results-calendar-container', 
+            pollData.startDate, 
+            pollData.endDate, 
+            pollData.startTime, 
+            pollData.endTime,
+            false
+        );
 
-        // Display summary of who has responded
-        resultsSummary.innerHTML = `<h3>Responses:</h3><p>${Object.keys(pollData.availabilities).length} of ${totalParticipants} people have responded.</p>
-        <p>A link to this results page can be shared with the group leader only.</p>`;
+        const allSlots = resultsCalendarContainer.querySelectorAll('.time-slot');
+        allSlots.forEach(slot => {
+            const count = availabilityCounts[slot.dataset.slotKey] || 0;
+            const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
+            
+            slot.title = `${count} of ${totalParticipants} available`;
 
-        // Create the results calendar
-        resultsCalendar.innerHTML = '';
-        const headerRow = document.createElement('div');
-        headerRow.style.display = 'contents';
+            if (count > 0) {
+                slot.textContent = count;
+            }
 
-        const timeColumn = document.createElement('div');
-        timeColumn.className = 'day-header';
-        timeColumn.textContent = 'Time';
-        headerRow.appendChild(timeColumn);
-        resultsCalendar.appendChild(headerRow);
-
-        let currentDate = new Date(TODAY);
-        const dates = [];
-        while (currentDate <= END_DATE) {
-            dates.push(new Date(currentDate));
-            const dayHeader = document.createElement('div');
-            dayHeader.className = 'day-header';
-            dayHeader.textContent = `${getDayName(currentDate)} ${currentDate.getDate()}`;
-            headerRow.appendChild(dayHeader);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        for (let i = 0; i < CALENDAR_CELLS_PER_DAY; i++) {
-            const timeCell = document.createElement('div');
-            timeCell.className = 'time-slot';
-            const hour = Math.floor(i / 2);
-            const minutes = (i % 2) * 30;
-            timeCell.textContent = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-            timeCell.style.fontWeight = 'bold';
-            timeCell.style.border = 'none';
-            resultsCalendar.appendChild(timeCell);
-
-            dates.forEach((day, dayIndex) => {
-                const daySlot = document.createElement('div');
-                daySlot.className = 'time-slot';
-                const slotKey = `${formatDate(day)}-${i}`;
-                const count = availabilityCounts[slotKey] || 0;
-                
-                const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
-                let color;
-                if (percentage === 100) {
-                    color = '#28a745'; // All available
-                } else if (percentage >= 75) {
-                    color = '#ffc107'; // Most available
-                } else if (percentage > 0) {
-                    color = '#fd7e14'; // Some available
-                } else {
-                    color = '#f9f9f9'; // No one available
-                }
-                
-                daySlot.style.backgroundColor = color;
-                daySlot.dataset.count = count;
-                daySlot.title = `${count} of ${totalParticipants} available`;
-                
-                if (count > 0) {
-                    daySlot.textContent = count;
-                }
-                
-                resultsCalendar.appendChild(daySlot);
-            });
-        }
+            if (percentage === 100) {
+                slot.classList.add('level-5');
+            } else if (percentage >= 75) {
+                slot.classList.add('level-4');
+            } else if (percentage >= 50) {
+                slot.classList.add('level-3');
+            } else if (percentage >= 25) {
+                slot.classList.add('level-2');
+            } else if (percentage > 0) {
+                slot.classList.add('level-1');
+            } else {
+                slot.classList.add('level-0');
+            }
+        });
     };
 
-    // Initial load
+    const handleRouting = async () => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#/poll/')) {
+            currentPollId = hash.substring(7);
+            showView(participantView);
+            currentPollData = await getPoll(currentPollId);
+            if (currentPollData) {
+                const participantName = localStorage.getItem(`poll-${currentPollId}-name`);
+                let initialAvailability = [];
+                if (participantName && currentPollData.availabilities[participantName]) {
+                    document.getElementById('participant-name').value = participantName;
+                    initialAvailability = currentPollData.availabilities[participantName];
+                }
+                createCalendar(
+                    'calendar-container',
+                    currentPollData.startDate,
+                    currentPollData.endDate,
+                    currentPollData.startTime,
+                    currentPollData.endTime,
+                    true,
+                    initialAvailability
+                );
+            }
+        } else if (hash.startsWith('#/results/')) {
+            currentPollId = hash.substring(10);
+            showView(resultsView);
+            currentPollData = await getPoll(currentPollId);
+            if (currentPollData) {
+                renderResults(currentPollData);
+            }
+        } else {
+            showView(createPollView);
+        }
+    };
+    
+    window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });

@@ -18,17 +18,47 @@
             <form id="create-poll-form">
                 <label for="emails">Enter Participant Emails (comma-separated):</label>
                 <textarea id="emails" required></textarea>
+                
+                <label for="start-date">Poll Start Date:</label>
+                <input type="date" id="start-date" required>
+                
+                <label for="end-date">Poll End Date:</label>
+                <input type="date" id="end-date" required>
+
+                <div class="time-range-group">
+                    <label>Set Office Hours (Central Time):</label>
+                    <div class="time-inputs">
+                        <input type="time" id="start-time" required value="07:00">
+                        <span>to</span>
+                        <input type="time" id="end-time" required value="17:00">
+                    </div>
+                </div>
+
                 <button type="submit">Create Poll</button>
             </form>
+        </div>
+
+        <div id="poll-link-view" class="view" style="display: none;">
+            <h2>Your Poll is Ready!</h2>
+            <p>Share this link with your participants:</p>
+            <div class="link-container">
+                <a id="poll-link" href="#" target="_blank"></a>
+                <button id="copy-link-btn" title="Copy Link">Copy</button>
+            </div>
+            <p>You can also use this link to view the results at any time:</p>
+            <div class="link-container">
+                <a id="results-link" href="#" target="_blank"></a>
+                <button id="copy-results-btn" title="Copy Link">Copy</button>
+            </div>
         </div>
 
         <div id="participant-view" class="view" style="display: none;">
             <h2>Your Availability</h2>
             <form id="participant-form">
-                <label for="participant-email">Your Email Address:</label>
-                <input type="email" id="participant-email" required>
+                <label for="participant-name">Your Name:</label>
+                <input type="text" id="participant-name" required>
                 <p>Click and drag on the calendar to select all times that work for you.</p>
-                <div id="calendar-container"></div>
+                <div id="calendar-container" class="calendar-wrapper"></div>
                 <button type="submit">Save Availability</button>
             </form>
         </div>
@@ -36,7 +66,7 @@
         <div id="results-view" class="view" style="display: none;">
             <h2>Poll Results</h2>
             <div id="results-summary"></div>
-            <div id="results-calendar-container"></div>
+            <div id="results-calendar-container" class="calendar-wrapper"></div>
         </div>
 
     </main>
