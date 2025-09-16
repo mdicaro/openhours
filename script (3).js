@@ -14,56 +14,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const participantEmailInput = document.getElementById('participant-email');
     const clearSelectionsBtn = document.getElementById('clear-selections-btn');
 
-    const HALF_HOUR_MS = 30 * 60 * 1000;
 
     let currentPollId = null;
     let currentPollData = null;
 
     // --- Helper Functions ---
-    const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    const parseLocalDate = (yyyyMmDd) => {
-        const [y, m, d] = yyyyMmDd.split('-').map(Number);
-        // Local midnight avoids UTC shifts
-        return new Date(y, m - 1, d);
-    };
-
-    const formatLocalDate = (date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
-
-    const getDatesInRange = (startDate, endDate) => {
-        const dates = [];
-        const start = parseLocalDate(startDate);
-        const end = parseLocalDate(endDate);
-        let currentDate = new Date(start);
-        while (currentDate <= end) {
-            dates.push(new Date(currentDate));
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        return dates;
-    };
-
-    const localCellToEpochIndex = (dayLocalDate, timeIndex) => {
-        const hour = Math.floor(timeIndex / 2);
-        const minute = (timeIndex % 2) * 30;
-        const ms = new Date(
-            dayLocalDate.getFullYear(),
-            dayLocalDate.getMonth(),
-            dayLocalDate.getDate(),
-            hour, minute, 0, 0
-        ).getTime(); // Date() uses viewer's local zone
-        return Math.floor(ms / HALF_HOUR_MS);
-    };
-
     const showView = (viewElement) => {
         document.querySelectorAll('.view').forEach(view => {
             view.style.display = 'none';
         });
         viewElement.style.display = 'block';
+    };
+
+    const getDatesInRange = (startDate, endDate) => {
+        const dates = [];
+        let currentDate = new Date(startDate);
+        while (currentDate <= new Date(endDate)) {
+            dates.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
     };
 
     const formatTime = (timeIndex) => {
@@ -85,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Calendar UI Logic ---
-    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialEpochSet = []) => {
+    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
         container.className = 'calendar-container';
@@ -115,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLabel.textContent = formatTime(startIndex + i);
             timeColumn.appendChild(timeLabel);
         }
-
+        
         dates.forEach(day => {
             const dayColumn = document.createElement('div');
             dayColumn.className = 'day-column';
@@ -129,13 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const timeSlot = document.createElement('div');
                 timeSlot.className = 'time-slot';
                 const timeIndex = startIndex + i;
-                // const slotKey = `${formatLocalDate(day)}-${timeIndex}`;;
-                // timeSlot.dataset.slotKey = slotKey;
-                const epochIndex = localCellToEpochIndex(day, timeIndex);      // canonical absolute key
-                timeSlot.dataset.slotKey = String(epochIndex);                 // new storage: numbers as strings for dataset
-                
+                const slotKey = `${day.toISOString().slice(0, 10)}-${timeIndex}`;
+                timeSlot.dataset.slotKey = slotKey;
+
                 if (isInteractive) {
-                    if (initialEpochSet?.has(epochIndex)) {
+                    if (initialAvailability.includes(slotKey)) {
                         timeSlot.classList.add('selected');
                     }
                     timeSlot.addEventListener('mousedown', (e) => {
@@ -197,15 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     };
 
-    const saveAvailability = async (pollId, email, availability, timezone) => {
+    const saveAvailability = async (pollId, email, availability) => {
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pollId, email, availability, timezone }) // CHANGED
+            body: JSON.stringify({ pollId, email, availability })
         });
         return response.json();
     };
-
     createPollForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const startDate = document.getElementById('start-date').value;
@@ -218,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
             endDate,
             startTime,
             endTime,
-            baseTimeZone: getViewerTimeZone(),
             createdAt: new Date().toISOString(),
             availabilities: {}
         };
@@ -233,13 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
     participantForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('participant-email').value;
-        const timezone = getViewerTimeZone();
-        const selectedEpochs = [];
+        const selectedTimeSlots = [];
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
-            selectedEpochs.push(Number(slot.dataset.slotKey));
+            selectedTimeSlots.push(slot.dataset.slotKey);
         });
 
-        await saveAvailability(currentPollId, email, selectedEpochs, timezone);
+        await saveAvailability(currentPollId, email, selectedTimeSlots);
         localStorage.setItem(`poll-${currentPollId}-email`, email);
 
         alert('Your availability has been saved!');
@@ -254,24 +219,28 @@ document.addEventListener('DOMContentLoaded', () => {
         copyToClipboard(resultsLink.href, copyResultsBtn);
     });
 
-    clearSelectionsBtn.addEventListener('click', async () => {
-        const email = participantEmailInput.value.trim();
-        if (!email) {
-            alert('Please enter your email before clearing.');
-            return;
-        }
-
-        // Clear current selection in UI
+    clearSelectionsBtn.addEventListener('click', () => {
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
             slot.classList.remove('selected');
         });
+    });
 
-        // Persist "empty" selection for this user
-        await saveAvailability(currentPollId, email, []);
-        localStorage.setItem(`poll-${currentPollId}-email`, email);
+    participantEmailInput.addEventListener('input', () => {
+        const newEmail = participantEmailInput.value;
+        const savedAvailability = currentPollData.availabilities[newEmail] || [];
 
-        alert('Selections cleared and saved.');
-        handleRouting();
+        document.querySelectorAll('#calendar-container .time-slot').forEach(slot => {
+            slot.classList.remove('selected');
+        });
+
+        if (savedAvailability.length > 0) {
+            savedAvailability.forEach(slotKey => {
+                const slot = document.querySelector(`#calendar-container [data-slot-key="${slotKey}"]`);
+                if (slot) {
+                    slot.classList.add('selected');
+                }
+            });
+        }
     });
 
     const showPollLink = (pollId) => {
@@ -344,20 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 slot.classList.add('level-0');
             }
         });
-
-        const resultsTzBanner = document.getElementById('results-tz-banner');
-        if (resultsTzBanner) {
-            const viewerTz = getViewerTimeZone();
-            const baseTz = currentPollData.baseTimeZone || viewerTz;
-            resultsTzBanner.textContent = `Times shown in: ${baseTz}`;
-        }
-
-        // script.js — in handleRouting when showing participant view
-        const tzBanner = document.getElementById('tz-banner');
-        if (tzBanner) {
-            tzBanner.textContent = `Times shown in your local time zone: ${getViewerTimeZone()}`;
-        }
-
     };
 
     const handleRouting = async () => {

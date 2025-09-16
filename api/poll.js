@@ -7,13 +7,15 @@ const redis = Redis.fromEnv();
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     // CHANGE: Destructure all necessary fields from the body
-    const { startDate, endDate, startTime, endTime } = req.body;
+    const { startDate, endDate, startTime, endTime, baseTimeZone } = req.body;
     const newPollId = `poll-${Date.now()}`;
     const newPoll = {
       startDate,
       endDate,
       startTime,
       endTime,
+      baseTimeZone: baseTimeZone || null,
+      timeZones: {},
       availabilities: {},
       createdAt: new Date().toISOString()
     };
@@ -22,11 +24,12 @@ export default async function handler(req, res) {
     res.status(201).json({ pollId: newPollId });
 
   } else if (req.method === 'PUT') {
-    const { pollId, email, availability } = req.body;
+    const { pollId, email, availability, timezone } = req.body;
     const poll = await redis.get(pollId);
 
     if (poll) {
-      poll.availabilities[email] = availability;
+      if (timezone) poll.timeZones = { ...(poll.timeZones || {}), [email]: timezone };
+  poll.availabilities[email] = availability;
       await redis.set(pollId, poll);
       res.status(200).json({ success: true });
     } else {
