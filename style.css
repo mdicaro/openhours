@@ -240,3 +240,15 @@ button:hover {
 .participant-controls label { margin-bottom: 0; }
 .participant-controls #participant-email { flex: 1 1 240px; margin-bottom: 0; }
 .participant-controls button { margin-bottom: 0; }
+
+select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fff;
+}
+
+.participant-controls select {
+  min-width: 220px;
+}

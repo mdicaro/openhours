@@ -1,399 +1,513 @@
 // script.js
 document.addEventListener('DOMContentLoaded', () => {
-    // --- UI Elements ---
-    const createPollView = document.getElementById('create-poll-view');
-    const pollLinkView = document.getElementById('poll-link-view');
-    const participantView = document.getElementById('participant-view');
-    const resultsView = document.getElementById('results-view');
-    const createPollForm = document.getElementById('create-poll-form');
-    const participantForm = document.getElementById('participant-form');
-    const pollLink = document.getElementById('poll-link');
-    const resultsLink = document.getElementById('results-link');
-    const copyLinkBtn = document.getElementById('copy-link-btn');
-    const copyResultsBtn = document.getElementById('copy-results-btn');
-    const participantEmailInput = document.getElementById('participant-email');
-    const clearSelectionsBtn = document.getElementById('clear-selections-btn');
+  // --- UI Elements ---
+  const createPollView = document.getElementById('create-poll-view');
+  const pollLinkView = document.getElementById('poll-link-view');
+  const participantView = document.getElementById('participant-view');
+  const resultsView = document.getElementById('results-view');
 
-    const HALF_HOUR_MS = 30 * 60 * 1000;
+  const createPollForm = document.getElementById('create-poll-form');
+  const participantForm = document.getElementById('participant-form');
 
-    let currentPollId = null;
-    let currentPollData = null;
+  const pollLink = document.getElementById('poll-link');
+  const resultsLink = document.getElementById('results-link');
+  const copyLinkBtn = document.getElementById('copy-link-btn');
+  const copyResultsBtn = document.getElementById('copy-results-btn');
 
-    // --- Helper Functions ---
-    const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const participantEmailInput = document.getElementById('participant-email');
+  const emailHistoryDatalist = document.getElementById('email-history');
 
-    const parseLocalDate = (yyyyMmDd) => {
-        const [y, m, d] = yyyyMmDd.split('-').map(Number);
-        // Local midnight avoids UTC shifts
-        return new Date(y, m - 1, d);
-    };
+  const clearSelectionsBtn = document.getElementById('clear-selections-btn');
+  const retrieveBtn = document.getElementById('retrieve-availability-btn');
 
-    const formatLocalDate = (date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
+  const organizerTzSelect = document.getElementById('organizer-timezone');
+  const participantTzSelect = document.getElementById('participant-timezone');
+  const resultsTzSelect = document.getElementById('results-timezone');
 
-    const getDatesInRange = (startDate, endDate) => {
-        const dates = [];
-        const start = parseLocalDate(startDate);
-        const end = parseLocalDate(endDate);
-        let currentDate = new Date(start);
-        while (currentDate <= end) {
-            dates.push(new Date(currentDate));
-            currentDate.setDate(currentDate.getDate() + 1);
+  const tzBanner = document.getElementById('tz-banner');
+  const resultsTzBanner = document.getElementById('results-tz-banner');
+
+  const HALF_HOUR_MS = 30 * 60 * 1000;
+  const API_URL = '/api/poll';
+
+  let currentPollId = null;
+  let currentPollData = null;
+
+  // --- Helper Functions ---
+  const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const supportedTimeZones = () => {
+    if (typeof Intl.supportedValuesOf === 'function') {
+      return Intl.supportedValuesOf('timeZone');
+    }
+    // Minimal fallback if needed
+    return [
+      'UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+      'Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Hong_Kong'
+    ];
+  };
+
+  const populateTimeZoneSelect = (selectEl, defaultTz) => {
+    selectEl.innerHTML = '';
+    const tzs = supportedTimeZones();
+    tzs.forEach(tz => {
+      const opt = document.createElement('option');
+      opt.value = tz;
+      opt.textContent = tz;
+      selectEl.appendChild(opt);
+    });
+    selectEl.value = tzs.includes(defaultTz) ? defaultTz : 'UTC';
+  };
+
+  const parseLocalDate = (yyyyMmDd) => {
+    const [y, m, d] = yyyyMmDd.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const getDatesInRange = (startDate, endDate) => {
+    const dates = [];
+    const start = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
+    let cur = new Date(start);
+    while (cur <= end) {
+      dates.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  };
+
+  // Get time-zone offset (minutes) for a given instant in a TZ.
+  const tzOffsetAt = (date, timeZone) => {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const parts = dtf.formatToParts(date);
+    const map = {};
+    for (const { type, value } of parts) map[type] = value;
+    const asUTC = Date.UTC(+map.year, +map.month - 1, +map.day, +map.hour, +map.minute, +map.second);
+    return (asUTC - date.getTime()) / 60000; // minutes offset from UTC
+  };
+
+  // Convert a local wall time (in 'timeZone') to a UTC Date using a two-pass offset (handles DST transitions).
+  const zonedTimeToUtc = (y, m, d, hh, mm, timeZone) => {
+    let ts = Date.UTC(y, m - 1, d, hh, mm, 0);
+    let off = tzOffsetAt(new Date(ts), timeZone);
+    ts = ts - off * 60000;
+    const off2 = tzOffsetAt(new Date(ts), timeZone);
+    if (off2 !== off) {
+      ts = Date.UTC(y, m - 1, d, hh, mm, 0) - off2 * 60000;
+    }
+    return new Date(ts);
+  };
+
+  const fmtTimeInZone = (dateUtc, timeZone) =>
+    new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).format(dateUtc);
+
+  const showView = (viewElement) => {
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    viewElement.style.display = 'block';
+  };
+
+  const copyToClipboard = (text, btn) => {
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => (btn.textContent = original), 1500);
+    });
+  };
+
+  const selectedEpochsFromUI = (containerSelector) => {
+    const out = [];
+    document.querySelectorAll(`${containerSelector} .time-slot.selected`).forEach(slot => {
+      out.push(Number(slot.dataset.slotKey));
+    });
+    return out;
+  };
+
+  const setBannerText = () => {
+    if (!currentPollData) return;
+    const baseTz = currentPollData.baseTimeZone || 'UTC';
+    if (tzBanner) {
+      tzBanner.textContent = `Organizer set: ${baseTz} — Displaying in: ${participantTzSelect.value}`;
+    }
+    if (resultsTzBanner) {
+      resultsTzBanner.textContent = `Organizer set: ${baseTz} — Displaying in: ${resultsTzSelect.value}`;
+    }
+  };
+
+  const upsertEmailHistory = (pollId, email) => {
+    const key = `poll-${pollId}-emails`;
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    if (email && !arr.includes(email)) {
+      arr.push(email);
+      localStorage.setItem(key, JSON.stringify(arr));
+    }
+  };
+
+  const loadEmailHistory = (pollId) => {
+    const key = `poll-${pollId}-emails`;
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    emailHistoryDatalist.innerHTML = '';
+    arr.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e;
+      emailHistoryDatalist.appendChild(opt);
+    });
+  };
+
+  // --- Calendar (TZ-aware) ---
+  const createCalendar = (containerId, pollData, {
+    isInteractive = false,
+    initialAvailability = [],
+    displayTimeZone
+  } = {}) => {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    container.className = 'calendar-container';
+
+    const initialEpochSet = new Set(initialAvailability.map(Number));
+    const baseTz = pollData.baseTimeZone || 'UTC';
+
+    // Parse times (minutes from midnight in organizer's base TZ)
+    const [sh, sm] = pollData.startTime.split(':').map(Number);
+    const [eh, em] = pollData.endTime.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    const totalSlots = Math.max(0, Math.floor((endMin - startMin) / 30));
+
+    const dates = getDatesInRange(pollData.startDate, pollData.endDate);
+
+    // Left time column — labels shown in the display TZ (using the first date as reference)
+    const timeColumn = document.createElement('div');
+    timeColumn.className = 'time-column';
+
+    const firstDate = dates[0];
+    for (let i = 0; i <= totalSlots; i++) {
+      const minutes = startMin + i * 30;
+      const y = firstDate.getFullYear();
+      const m = firstDate.getMonth() + 1;
+      const d = firstDate.getDate();
+      const hh = Math.floor(minutes / 60);
+      const mm = minutes % 60;
+
+      const utcForLabel = zonedTimeToUtc(y, m, d, hh, mm, baseTz);
+      const timeLabel = document.createElement('div');
+      timeLabel.className = 'time-label';
+      timeLabel.textContent = fmtTimeInZone(utcForLabel, displayTimeZone);
+      timeColumn.appendChild(timeLabel);
+    }
+
+    // Scrollable wrapper + grid
+    const scrollWrapper = document.createElement('div');
+    scrollWrapper.className = 'calendar-scroll-wrapper';
+
+    const calendar = document.createElement('div');
+    calendar.className = 'calendar';
+    if (containerId.includes('results')) {
+      calendar.classList.add('results-calendar');
+    }
+
+    // Build day columns
+    dates.forEach(day => {
+      const y = day.getFullYear();
+      const m = day.getMonth() + 1;
+      const d = day.getDate();
+
+      const dayColumn = document.createElement('div');
+      dayColumn.className = 'day-column';
+
+      const dayHeader = document.createElement('div');
+      dayHeader.className = 'day-header';
+      dayHeader.textContent = `${day.toLocaleDateString('en-US', { weekday: 'short' })} ${d}`;
+      dayColumn.appendChild(dayHeader);
+
+      for (let i = 0; i < totalSlots; i++) {
+        const minutes = startMin + i * 30;
+        const hh = Math.floor(minutes / 60);
+        const mm = minutes % 60;
+
+        // Canonical slot key: UTC half-hour index derived from organizer base TZ
+        const slotUtc = zonedTimeToUtc(y, m, d, hh, mm, baseTz);
+        const epochIndex = Math.floor(slotUtc.getTime() / HALF_HOUR_MS);
+
+        const timeSlot = document.createElement('div');
+        timeSlot.className = 'time-slot';
+        timeSlot.dataset.slotKey = String(epochIndex);
+
+        // Helpful hover: show the exact time in the display TZ for this cell
+        timeSlot.title = `${fmtTimeInZone(slotUtc, displayTimeZone)} (${displayTimeZone})`;
+
+        if (isInteractive && initialEpochSet.has(epochIndex)) {
+          timeSlot.classList.add('selected');
         }
-        return dates;
-    };
 
-    const localCellToEpochIndex = (dayLocalDate, timeIndex) => {
-        const hour = Math.floor(timeIndex / 2);
-        const minute = (timeIndex % 2) * 30;
-        const ms = new Date(
-            dayLocalDate.getFullYear(),
-            dayLocalDate.getMonth(),
-            dayLocalDate.getDate(),
-            hour, minute, 0, 0
-        ).getTime(); // Date() uses viewer's local zone
-        return Math.floor(ms / HALF_HOUR_MS);
-    };
+        if (isInteractive) {
+          timeSlot.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const startState = e.target.classList.toggle('selected');
+            let isDragging = true;
 
-    const showView = (viewElement) => {
-        document.querySelectorAll('.view').forEach(view => {
-            view.style.display = 'none';
-        });
-        viewElement.style.display = 'block';
-    };
-
-    const formatTime = (timeIndex) => {
-        const hour = Math.floor(timeIndex / 2);
-        const minutes = (timeIndex % 2) * 30;
-        return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    };
-
-    const copyToClipboard = (text, btn) => {
-        navigator.clipboard.writeText(text).then(() => {
-            const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy text:', err);
-        });
-    };
-
-    // --- Calendar UI Logic ---
-    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
-        const container = document.getElementById(containerId);
-        container.innerHTML = '';
-        container.className = 'calendar-container';
-        const initialEpochSet = new Set(initialAvailability.map(v => Number(v)));
-
-        const timeColumn = document.createElement('div');
-        timeColumn.className = 'time-column';
-
-        const scrollWrapper = document.createElement('div');
-        scrollWrapper.className = 'calendar-scroll-wrapper';
-
-        const calendar = document.createElement('div');
-        calendar.className = 'calendar';
-        if (containerId.includes('results')) {
-            calendar.classList.add('results-calendar');
+            const handleMouseMove = (moveEvent) => {
+              if (!isDragging) return;
+              const target = moveEvent.target.closest('.time-slot');
+              if (target) {
+                if (startState) target.classList.add('selected');
+                else target.classList.remove('selected');
+              }
+            };
+            const handleMouseUp = () => {
+              isDragging = false;
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          });
         }
 
-        const dates = getDatesInRange(startDate, endDate);
-        const startMinute = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
-        const endMinute = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
-        const startIndex = startMinute / 30;
-        const endIndex = endMinute / 30;
-        const totalTimeSlots = endIndex - startIndex;
+        dayColumn.appendChild(timeSlot);
+      }
 
-        for (let i = 0; i <= totalTimeSlots; i++) {
-            const timeLabel = document.createElement('div');
-            timeLabel.className = 'time-label';
-            timeLabel.textContent = formatTime(startIndex + i);
-            timeColumn.appendChild(timeLabel);
-        }
-
-        dates.forEach(day => {
-            const dayColumn = document.createElement('div');
-            dayColumn.className = 'day-column';
-
-            const dayHeader = document.createElement('div');
-            dayHeader.className = 'day-header';
-            dayHeader.textContent = `${day.toLocaleDateString('en-US', { weekday: 'short' })} ${day.getDate()}`;
-            dayColumn.appendChild(dayHeader);
-
-            for (let i = 0; i < totalTimeSlots; i++) {
-                const timeSlot = document.createElement('div');
-                timeSlot.className = 'time-slot';
-                const timeIndex = startIndex + i;
-                const epochIndex = localCellToEpochIndex(day, timeIndex);      // canonical absolute key
-                timeSlot.dataset.slotKey = String(epochIndex);                 // new storage: numbers as strings for dataset
-                
-                if (isInteractive) {
-                    if (initialEpochSet.has(epochIndex)) {
-                        timeSlot.classList.add('selected');
-                    }
-                    timeSlot.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        const startState = e.target.classList.toggle('selected');
-                        let isDragging = true;
-
-                        const handleMouseMove = (moveEvent) => {
-                            if (!isDragging) return;
-                            const target = moveEvent.target.closest('.time-slot');
-                            if (target) {
-                                if (startState) {
-                                    target.classList.add('selected');
-                                } else {
-                                    target.classList.remove('selected');
-                                }
-                            }
-                        };
-                        const handleMouseUp = () => {
-                            isDragging = false;
-                            window.removeEventListener('mousemove', handleMouseMove);
-                            window.removeEventListener('mouseup', handleMouseUp);
-                        };
-
-                        window.addEventListener('mousemove', handleMouseMove);
-                        window.addEventListener('mouseup', handleMouseUp);
-                    });
-                }
-                dayColumn.appendChild(timeSlot);
-            }
-            calendar.appendChild(dayColumn);
-        });
-
-        scrollWrapper.appendChild(calendar);
-        container.appendChild(timeColumn);
-        // --- THIS IS THE FIX ---
-        container.appendChild(scrollWrapper); // Was: container.appendChild(calendar)
-    };
-
-    // --- Backend API Calls ---
-    // ... (rest of the file is identical to what you have)
-    // --- Event Handlers ---
-    // ...
-    // --- View Rendering & Routing ---
-    // ...
-    const API_URL = '/api/poll';
-
-    const createPoll = async (pollData) => {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pollData)
-        });
-        return response.json();
-    };
-
-    const getPoll = async (pollId) => {
-        const response = await fetch(`${API_URL}?id=${pollId}`);
-        return response.json();
-    };
-
-    const saveAvailability = async (pollId, email, availability, timezone) => {
-        const response = await fetch(API_URL, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pollId, email, availability, timezone }) // CHANGED
-        });
-        return response.json();
-    };
-
-    createPollForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
-        const startTime = document.getElementById('start-time').value;
-        const endTime = document.getElementById('end-time').value;
-
-        const pollData = {
-            startDate,
-            endDate,
-            startTime,
-            endTime,
-            baseTimeZone: getViewerTimeZone(),
-            createdAt: new Date().toISOString(),
-            availabilities: {}
-        };
-
-        const response = await createPoll(pollData);
-        if (response.pollId) {
-            currentPollId = response.pollId;
-            showPollLink(response.pollId);
-        }
+      calendar.appendChild(dayColumn);
     });
 
-    participantForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('participant-email').value;
-        const timezone = getViewerTimeZone();
-        const selectedEpochs = [];
-        document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
-            selectedEpochs.push(Number(slot.dataset.slotKey));
-        });
+    scrollWrapper.appendChild(calendar);
+    container.appendChild(timeColumn);
+    container.appendChild(scrollWrapper);
+  };
 
-        await saveAvailability(currentPollId, email, selectedEpochs, timezone);
-        localStorage.setItem(`poll-${currentPollId}-email`, email);
-
-        alert('Your availability has been saved!');
-        handleRouting();
+  // --- Backend API ---
+  const createPoll = async (pollData) => {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pollData)
     });
+    return response.json();
+  };
 
-    copyLinkBtn.addEventListener('click', () => {
-        copyToClipboard(pollLink.href, copyLinkBtn);
+  const getPoll = async (pollId) => {
+    const response = await fetch(`${API_URL}?id=${pollId}`);
+    return response.json();
+  };
+
+  const saveAvailability = async (pollId, email, availability, timezone) => {
+    const response = await fetch(API_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pollId, email, availability, timezone })
     });
+    return response.json();
+  };
 
-    copyResultsBtn.addEventListener('click', () => {
-        copyToClipboard(resultsLink.href, copyResultsBtn);
-    });
+  // --- Event Handlers ---
 
-    clearSelectionsBtn.addEventListener('click', async () => {
-        const email = participantEmailInput.value.trim();
-        if (!email) {
-            alert('Please enter your email before clearing.');
-            return;
-        }
+  // Create Poll
+  createPollForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const startTime = document.getElementById('start-time').value;
+    const endTime = document.getElementById('end-time').value;
 
-        // Clear current selection in UI
-        document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
-            slot.classList.remove('selected');
-        });
-
-        // Persist "empty" selection for this user
-        await saveAvailability(currentPollId, email, []);
-        localStorage.setItem(`poll-${currentPollId}-email`, email);
-
-        alert('Selections cleared and saved.');
-        handleRouting();
-    });
-
-    const showPollLink = (pollId) => {
-        const pollUrl = `${window.location.origin}/#/poll/${pollId}`;
-        const resultsUrl = `${window.location.origin}/#/results/${pollId}`;
-        pollLink.href = pollUrl;
-        pollLink.textContent = pollUrl;
-        resultsLink.href = resultsUrl;
-        resultsLink.textContent = resultsUrl;
-        showView(pollLinkView);
+    const pollData = {
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      baseTimeZone: organizerTzSelect.value || getViewerTimeZone(),
+      createdAt: new Date().toISOString(),
+      availabilities: {}
     };
 
-    const renderResults = (pollData) => {
-        const resultsSummary = document.getElementById('results-summary');
-        const resultsCalendarContainer = document.getElementById('results-calendar-container');
+    const response = await createPoll(pollData);
+    if (response.pollId) {
+      currentPollId = response.pollId;
+      showPollLink(response.pollId);
+    }
+  });
 
-        const allAvailabilities = Object.values(pollData.availabilities).flat();
-        const availabilityCounts = allAvailabilities.reduce((acc, slotKey) => {
-            acc[slotKey] = (acc[slotKey] || 0) + 1;
-            return acc;
-        }, {});
-        const slotToEmailsMap = {};
-        for (const email in pollData.availabilities) {
-            const selectedSlots = pollData.availabilities[email];
-            selectedSlots.forEach(slotKey => {
-                if (!slotToEmailsMap[slotKey]) {
-                    slotToEmailsMap[slotKey] = [];
-                }
-                slotToEmailsMap[slotKey].push(email);
-            });
-        }
-        const totalParticipants = Object.keys(pollData.availabilities).length;
+  // Participant Save
+  participantForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = participantEmailInput.value.trim();
+    if (!email) {
+      alert('Please enter your email.');
+      return;
+    }
+    const timezone = participantTzSelect.value;
+    const selectedEpochs = selectedEpochsFromUI('#calendar-container');
 
-        resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} people have responded.</p>`;
+    await saveAvailability(currentPollId, email, selectedEpochs, timezone);
+    // Store last-used email and history
+    localStorage.setItem(`poll-${currentPollId}-email`, email);
+    upsertEmailHistory(currentPollId, email);
 
-        createCalendar(
-            'results-calendar-container',
-            pollData.startDate,
-            pollData.endDate,
-            pollData.startTime,
-            pollData.endTime,
-            false
-        );
-
-        const allSlots = resultsCalendarContainer.querySelectorAll('.time-slot');
-        allSlots.forEach(slot => {
-            const slotKey = slot.dataset.slotKey;
-            const count = availabilityCounts[slot.dataset.slotKey] || 0;
-            const availableEmails = slotToEmailsMap[slotKey] || [];
-            const emailList = availableEmails.join('\n');
-            const percentage = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
-
-            slot.title = `${count} Available\n\n${emailList}`;
-
-            if (count > 0) {
-                slot.textContent = count;
-            }
-
-            if (percentage === 100) {
-                slot.classList.add('level-5');
-            } else if (percentage >= 75) {
-                slot.classList.add('level-4');
-            } else if (percentage >= 50) {
-                slot.classList.add('level-3');
-            } else if (percentage >= 25) {
-                slot.classList.add('level-2');
-            } else if (percentage > 0) {
-                slot.classList.add('level-1');
-            } else {
-                slot.classList.add('level-0');
-            }
-        });
-
-        const resultsTzBanner = document.getElementById('results-tz-banner');
-        if (resultsTzBanner) {
-            const viewerTz = getViewerTimeZone();
-            const baseTz = currentPollData.baseTimeZone || viewerTz;
-            resultsTzBanner.textContent = `Times shown in: ${baseTz}`;
-        }
-
-        // script.js — in handleRouting when showing participant view
-        const tzBanner = document.getElementById('tz-banner');
-        if (tzBanner) {
-            tzBanner.textContent = `Times shown in your local time zone: ${getViewerTimeZone()}`;
-        }
-
-    };
-
-    const handleRouting = async () => {
-        const hash = window.location.hash;
-        if (hash.startsWith('#/poll/')) {
-            currentPollId = hash.substring(7);
-            showView(participantView);
-            currentPollData = await getPoll(currentPollId);
-            if (currentPollData) {
-                const participantEmail = localStorage.getItem(`poll-${currentPollId}-email`);
-                let initialAvailability = [];
-                if (participantEmail && currentPollData.availabilities[participantEmail]) {
-                    document.getElementById('participant-email').value = participantEmail;
-                    initialAvailability = currentPollData.availabilities[participantEmail];
-                }
-                createCalendar(
-                    'calendar-container',
-                    currentPollData.startDate,
-                    currentPollData.endDate,
-                    currentPollData.startTime,
-                    currentPollData.endTime,
-                    true,
-                    initialAvailability
-                );
-            }
-        } else if (hash.startsWith('#/results/')) {
-            currentPollId = hash.substring(10);
-            showView(resultsView);
-            currentPollData = await getPoll(currentPollId);
-            if (currentPollData) {
-                renderResults(currentPollData);
-            }
-        } else {
-            showView(createPollView);
-        }
-    };
-
-    window.addEventListener('hashchange', handleRouting);
+    alert('Your availability has been saved!');
     handleRouting();
+  });
+
+  // Clear (no save)
+  clearSelectionsBtn.addEventListener('click', () => {
+    document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+  });
+
+  // Retrieve prior availability for the entered email
+  retrieveBtn.addEventListener('click', async () => {
+    const email = participantEmailInput.value.trim();
+    if (!email) {
+      alert('Enter your email to retrieve.');
+      return;
+    }
+    if (!currentPollId) return;
+    currentPollData = await getPoll(currentPollId); // refresh
+    const init = (currentPollData.availabilities && currentPollData.availabilities[email]) || [];
+    createCalendar('calendar-container', currentPollData, {
+      isInteractive: true,
+      initialAvailability: init,
+      displayTimeZone: participantTzSelect.value
+    });
+    alert('Loaded your saved selections (if any).');
+  });
+
+  // TZ select changes (participant/results) re-render the grids
+  participantTzSelect.addEventListener('change', () => {
+    if (!currentPollData) return;
+    const init = selectedEpochsFromUI('#calendar-container'); // keep current selections
+    createCalendar('calendar-container', currentPollData, {
+      isInteractive: true,
+      initialAvailability: init,
+      displayTimeZone: participantTzSelect.value
+    });
+    setBannerText();
+  });
+
+  resultsTzSelect.addEventListener('change', () => {
+    if (!currentPollData) return;
+    renderResults(currentPollData);
+  });
+
+  copyLinkBtn?.addEventListener('click', () => copyToClipboard(pollLink.href, copyLinkBtn));
+  copyResultsBtn?.addEventListener('click', () => copyToClipboard(resultsLink.href, copyResultsBtn));
+
+  const showPollLink = (pollId) => {
+    const pollUrl = `${window.location.origin}/#/poll/${pollId}`;
+    const resultsUrl = `${window.location.origin}/#/results/${pollId}`;
+    pollLink.href = pollUrl;    pollLink.textContent = pollUrl;
+    resultsLink.href = resultsUrl; resultsLink.textContent = resultsUrl;
+    showView(pollLinkView);
+  };
+
+  const renderResults = (pollData) => {
+    const resultsSummary = document.getElementById('results-summary');
+    const resultsCalendarContainer = document.getElementById('results-calendar-container');
+
+    // Aggregate
+    const allAvailabilities = Object.values(pollData.availabilities || {}).flat();
+    const availabilityCounts = allAvailabilities.reduce((acc, slotKey) => {
+      acc[slotKey] = (acc[slotKey] || 0) + 1;
+      return acc;
+    }, {});
+    const slotToEmailsMap = {};
+    for (const email in (pollData.availabilities || {})) {
+      (pollData.availabilities[email] || []).forEach(slotKey => {
+        if (!slotToEmailsMap[slotKey]) slotToEmailsMap[slotKey] = [];
+        slotToEmailsMap[slotKey].push(email);
+      });
+    }
+    const totalParticipants = Object.keys(pollData.availabilities || {}).length;
+    resultsSummary.innerHTML = `<h3>Responses:</h3><p>${totalParticipants} people have responded.</p>`;
+
+    // Calendar
+    createCalendar('results-calendar-container', pollData, {
+      isInteractive: false,
+      initialAvailability: [],
+      displayTimeZone: resultsTzSelect.value
+    });
+
+    // Colorize cells & tooltips
+    const allSlots = resultsCalendarContainer.querySelectorAll('.time-slot');
+    allSlots.forEach(slot => {
+      const key = slot.dataset.slotKey;
+      const count = availabilityCounts[key] || 0;
+      const pct = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
+      const emails = slotToEmailsMap[key] || [];
+
+      // append counts
+      if (count > 0) slot.textContent = count;
+      slot.title = `${slot.title}\n\n${count} available${count !== 1 ? '' : ''}\n${emails.join('\n')}`;
+
+      if (pct === 100) slot.classList.add('level-5');
+      else if (pct >= 75) slot.classList.add('level-4');
+      else if (pct >= 50) slot.classList.add('level-3');
+      else if (pct >= 25) slot.classList.add('level-2');
+      else if (pct > 0) slot.classList.add('level-1');
+      else slot.classList.add('level-0');
+    });
+
+    setBannerText();
+  };
+
+  // --- Routing ---
+  const handleRouting = async () => {
+    const hash = window.location.hash;
+
+    // Always ensure TZ dropdowns have defaults
+    if (organizerTzSelect && !organizerTzSelect.options.length) {
+      populateTimeZoneSelect(organizerTzSelect, getViewerTimeZone());
+    }
+    if (participantTzSelect && !participantTzSelect.options.length) {
+      populateTimeZoneSelect(participantTzSelect, getViewerTimeZone());
+    }
+    if (resultsTzSelect && !resultsTzSelect.options.length) {
+      populateTimeZoneSelect(resultsTzSelect, getViewerTimeZone());
+    }
+
+    if (hash.startsWith('#/poll/')) {
+      currentPollId = hash.substring(7);
+      showView(participantView);
+
+      currentPollData = await getPoll(currentPollId);
+      if (currentPollData) {
+        // Use organizer's base TZ to update banners, and default participant display to viewer (can be changed)
+        setBannerText();
+
+        // email autofill + history
+        const savedEmail = localStorage.getItem(`poll-${currentPollId}-email`);
+        if (savedEmail) participantEmailInput.value = savedEmail;
+        loadEmailHistory(currentPollId);
+
+        // Preselect previous availability for savedEmail, if any
+        let initialAvailability = [];
+        if (savedEmail && currentPollData.availabilities?.[savedEmail]) {
+          initialAvailability = currentPollData.availabilities[savedEmail];
+        }
+
+        createCalendar('calendar-container', currentPollData, {
+          isInteractive: true,
+          initialAvailability,
+          displayTimeZone: participantTzSelect.value
+        });
+
+        setBannerText();
+      }
+    } else if (hash.startsWith('#/results/')) {
+      currentPollId = hash.substring(10);
+      showView(resultsView);
+
+      currentPollData = await getPoll(currentPollId);
+      if (currentPollData) {
+        renderResults(currentPollData);
+      }
+    } else {
+      showView(createPollView);
+    }
+  };
+
+  window.addEventListener('hashchange', handleRouting);
+  handleRouting();
 });

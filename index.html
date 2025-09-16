@@ -1,79 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meeting Poller</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meeting Poller</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
-
 <body>
+  <main id="app-container">
+    <!-- CREATE POLL -->
+    <div id="create-poll-view" class="view">
+      <h2>Create a New Poll</h2>
+      <form id="create-poll-form">
+        <label for="start-date">Poll Start Date:</label>
+        <input type="date" id="start-date" required />
 
-    <main id="app-container">
-        <div id="create-poll-view" class="view">
-            <h2>Create a New Poll</h2>
-            <form id="create-poll-form">
+        <label for="end-date">Poll End Date:</label>
+        <input type="date" id="end-date" required />
 
-                <label for="start-date">Poll Start Date:</label>
-                <input type="date" id="start-date" required>
-
-                <label for="end-date">Poll End Date:</label>
-                <input type="date" id="end-date" required>
-
-                <div class="time-range-group">
-                    <label>Set Office Hours (Central Time):</label>
-                    <div class="time-inputs">
-                        <input type="time" id="start-time" required value="07:00">
-                        <span>to</span>
-                        <input type="time" id="end-time" required value="17:00">
-                    </div>
-                </div>
-
-                <button type="submit">Create Poll</button>
-            </form>
+        <div class="time-range-group">
+          <label>Set Office Hours</label>
+          <div class="time-inputs">
+            <input type="time" id="start-time" required value="07:00" />
+            <span>to</span>
+            <input type="time" id="end-time" required value="17:00" />
+          </div>
         </div>
 
-        <div id="poll-link-view" class="view" style="display: none;">
-            <h2>Your Poll is Ready!</h2>
-            <p>Share this link with your participants:</p>
-            <div class="link-container">
-                <a id="poll-link" href="#" target="_blank"></a>
-                <button id="copy-link-btn" title="Copy Link">Copy</button>
-            </div>
-            <p>You can also use this link to view the results at any time:</p>
-            <div class="link-container">
-                <a id="results-link" href="#" target="_blank"></a>
-                <button id="copy-results-btn" title="Copy Link">Copy</button>
-            </div>
+        <label for="organizer-timezone">Time Zone:</label>
+        <select id="organizer-timezone" aria-label="Organizer time zone"></select>
+
+        <button type="submit">Create Poll</button>
+      </form>
+    </div>
+
+    <!-- LINKS -->
+    <div id="poll-link-view" class="view" style="display:none;">
+      <h2>Your Poll is Ready!</h2>
+      <p>Share this link with your participants:</p>
+      <div class="link-container">
+        <a id="poll-link" href="#" target="_blank"></a>
+        <button id="copy-link-btn" title="Copy Link">Copy</button>
+      </div>
+      <p>You can also use this link to view the results at any time:</p>
+      <div class="link-container">
+        <a id="results-link" href="#" target="_blank"></a>
+        <button id="copy-results-btn" title="Copy Link">Copy</button>
+      </div>
+    </div>
+
+    <!-- PARTICIPANT VIEW -->
+    <div id="participant-view" class="view" style="display:none;">
+      <h2>Your Availability</h2>
+      <form id="participant-form">
+        <div class="participant-controls">
+          <label for="participant-email">Your Email:</label>
+          <input type="email" id="participant-email" list="email-history" placeholder="name@example.com" required />
+          <datalist id="email-history"></datalist>
+          <label for="participant-timezone" style="margin-left:auto;">Display TZ:</label>
+          <select id="participant-timezone" aria-label="Participant display time zone"></select>
+          <button type="button" id="retrieve-availability-btn" title="Retrieve your saved availability">Retrieve</button>
+          <button type="submit" id="save-availability-btn">Save</button>
+          <button type="button" id="clear-selections-btn" title="Clear current selections (no save)">Clear</button>
         </div>
 
-        <div id="participant-view" class="view" style="display: none;">
-            <h2>Your Availability</h2>
-            <form id="participant-form">
-                <div class="participant-controls">
-                    <label for="participant-email">Your Email:</label>
-                    <input type="email" id="participant-email" placeholder="name@example.com" required>
-                    <div id="tz-banner" class="tz-banner" aria-live="polite"></div>
-                    <button type="submit" id="save-availability-btn">Save</button>
-                    <button type="button" id="clear-selections-btn" title="Clear all selections and save as empty">Clear
-                        &amp; Save</button>
-                </div>
+        <div id="tz-banner" class="tz-banner" aria-live="polite"></div>
+        <p>Click and drag on the calendar to select all times that work for you.</p>
+        <div id="calendar-container"></div>
+      </form>
+    </div>
 
-                <p>Click and drag on the calendar to select all times that work for you.</p>
-                <div id="calendar-container"></div>
-            </form>
-        </div>
+    <!-- RESULTS VIEW -->
+    <div id="results-view" class="view" style="display:none;">
+      <h2>Poll Results</h2>
+      <div class="participant-controls">
+        <div id="results-tz-banner" class="tz-banner" aria-live="polite"></div>
+        <label for="results-timezone" style="margin-left:auto;">Display TZ:</label>
+        <select id="results-timezone" aria-label="Results display time zone"></select>
+      </div>
 
-        <div id="results-view" class="view" style="display: none;">
-            <h2>Poll Results</h2>
-            <div id="results-summary"></div>
-            <div id="results-calendar-container" class="calendar-wrapper"></div>
-        </div>
-
-    </main>
-
-    <script src="script.js"></script>
+      <div id="results-summary"></div>
+      <div id="results-calendar-container" class="calendar-wrapper"></div>
+    </div>
+  </main>
+  <script src="script.js"></script>
 </body>
-
 </html>
