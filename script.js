@@ -19,21 +19,37 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPollData = null;
 
     // --- Helper Functions ---
+    const parseLocalDate = (yyyyMmDd) => {
+        const [y, m, d] = yyyyMmDd.split('-').map(Number);
+        // Local midnight avoids UTC shifts
+        return new Date(y, m - 1, d);
+    };
+
+    const formatLocalDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    // Replace getDatesInRange with a local-date version
+    const getDatesInRange = (startDate, endDate) => {
+        const dates = [];
+        const start = parseLocalDate(startDate);
+        const end = parseLocalDate(endDate);
+        let currentDate = new Date(start);
+        while (currentDate <= end) {
+            dates.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
+    };
+
     const showView = (viewElement) => {
         document.querySelectorAll('.view').forEach(view => {
             view.style.display = 'none';
         });
         viewElement.style.display = 'block';
-    };
-
-    const getDatesInRange = (startDate, endDate) => {
-        const dates = [];
-        let currentDate = new Date(startDate);
-        while (currentDate <= new Date(endDate)) {
-            dates.push(new Date(currentDate));
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        return dates;
     };
 
     const formatTime = (timeIndex) => {
@@ -85,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLabel.textContent = formatTime(startIndex + i);
             timeColumn.appendChild(timeLabel);
         }
-        
+
         dates.forEach(day => {
             const dayColumn = document.createElement('div');
             dayColumn.className = 'day-column';
@@ -99,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const timeSlot = document.createElement('div');
                 timeSlot.className = 'time-slot';
                 const timeIndex = startIndex + i;
-                const slotKey = `${day.toISOString().slice(0, 10)}-${timeIndex}`;
+                const slotKey = `${formatLocalDate(day)}-${timeIndex}`;;
                 timeSlot.dataset.slotKey = slotKey;
 
                 if (isInteractive) {
@@ -219,28 +235,24 @@ document.addEventListener('DOMContentLoaded', () => {
         copyToClipboard(resultsLink.href, copyResultsBtn);
     });
 
-    clearSelectionsBtn.addEventListener('click', () => {
+    clearSelectionsBtn.addEventListener('click', async () => {
+        const email = participantEmailInput.value.trim();
+        if (!email) {
+            alert('Please enter your email before clearing.');
+            return;
+        }
+
+        // Clear current selection in UI
         document.querySelectorAll('#calendar-container .time-slot.selected').forEach(slot => {
             slot.classList.remove('selected');
         });
-    });
 
-    participantEmailInput.addEventListener('input', () => {
-        const newEmail = participantEmailInput.value;
-        const savedAvailability = currentPollData.availabilities[newEmail] || [];
+        // Persist "empty" selection for this user
+        await saveAvailability(currentPollId, email, []);
+        localStorage.setItem(`poll-${currentPollId}-email`, email);
 
-        document.querySelectorAll('#calendar-container .time-slot').forEach(slot => {
-            slot.classList.remove('selected');
-        });
-
-        if (savedAvailability.length > 0) {
-            savedAvailability.forEach(slotKey => {
-                const slot = document.querySelector(`#calendar-container [data-slot-key="${slotKey}"]`);
-                if (slot) {
-                    slot.classList.add('selected');
-                }
-            });
-        }
+        alert('Selections cleared and saved.');
+        handleRouting();
     });
 
     const showPollLink = (pollId) => {

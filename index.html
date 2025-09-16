@@ -51,14 +51,16 @@
         <div id="participant-view" class="view" style="display: none;">
             <h2>Your Availability</h2>
             <form id="participant-form">
-                <label for="participant-email">Your Email:</label>
-                <input type="email" id="participant-email" required>
+                <div class="participant-controls">
+                    <label for="participant-email">Your Email:</label>
+                    <input type="email" id="participant-email" placeholder="name@example.com" required>
+                    <button type="submit" id="save-availability-btn">Save</button>
+                    <button type="button" id="clear-selections-btn" title="Clear all selections and save as empty">Clear
+                        &amp; Save</button>
+                </div>
+
                 <p>Click and drag on the calendar to select all times that work for you.</p>
                 <div id="calendar-container"></div>
-                <div class="form-actions">
-                    <button type="submit">Save Availability</button>
-                    <button type="button" id="clear-selections-btn">Clear Selections</button>
-                </div>
             </form>
         </div>
 

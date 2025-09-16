@@ -194,13 +194,13 @@ button:hover {
     background-color: #66bb6a;
 }
 
-/* Results Calendar Colors */
-.results-calendar .time-slot.level-5 { background-color: #28a745; }
-.results-calendar .time-slot.level-4 { background-color: #6c757d; }
-.results-calendar .time-slot.level-3 { background-color: #ffc107; }
-.results-calendar .time-slot.level-2 { background-color: #fd7e14; }
-.results-calendar .time-slot.level-1 { background-color: #dc3545; }
-.results-calendar .time-slot.level-0 { background-color: #f9f9f9; }
+/* Results Calendar Colors (0% = neutral gray, higher % = greener) */
+.results-calendar .time-slot.level-5 { background-color: #1a9850; color: #fff; }  /* 100% */
+.results-calendar .time-slot.level-4 { background-color: #91cf60; }               /* 75–<100% */
+.results-calendar .time-slot.level-3 { background-color: #d9ef8b; }               /* 50–<75% */
+.results-calendar .time-slot.level-2 { background-color: #fee08b; }               /* 25–<50% */
+.results-calendar .time-slot.level-1 { background-color: #fc8d59; }               /* >0–<25% */
+.results-calendar .time-slot.level-0 { background-color: #f7f7f7; }               /* 0% */
 
 .results-calendar .time-slot {
     text-align: center;
@@ -220,3 +220,14 @@ button:hover {
 #clear-selections-btn:hover {
     background-color: #5a6268;
 }
+
+.participant-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.participant-controls label { margin-bottom: 0; }
+.participant-controls #participant-email { flex: 1 1 240px; margin-bottom: 0; }
+.participant-controls button { margin-bottom: 0; }
