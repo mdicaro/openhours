@@ -85,10 +85,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Calendar UI Logic ---
-    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialEpochSet = []) => {
+    const createCalendar = (containerId, startDate, endDate, startTime, endTime, isInteractive = false, initialAvailability = []) => {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
         container.className = 'calendar-container';
+        const initialEpochSet = new Set(initialAvailability.map(v => Number(v)));
 
         const timeColumn = document.createElement('div');
         timeColumn.className = 'time-column';
@@ -129,13 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const timeSlot = document.createElement('div');
                 timeSlot.className = 'time-slot';
                 const timeIndex = startIndex + i;
-                // const slotKey = `${formatLocalDate(day)}-${timeIndex}`;;
-                // timeSlot.dataset.slotKey = slotKey;
                 const epochIndex = localCellToEpochIndex(day, timeIndex);      // canonical absolute key
                 timeSlot.dataset.slotKey = String(epochIndex);                 // new storage: numbers as strings for dataset
                 
                 if (isInteractive) {
-                    if (initialEpochSet?.has(epochIndex)) {
+                    if (initialEpochSet.has(epochIndex)) {
                         timeSlot.classList.add('selected');
                     }
                     timeSlot.addEventListener('mousedown', (e) => {
