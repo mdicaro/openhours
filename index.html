@@ -54,17 +54,23 @@
       <h2>Your Availability</h2>
       <form id="participant-form">
         <div class="participant-controls">
-          <label for="participant-email">Your Email:</label>
-          <input type="email" id="participant-email" list="email-history" placeholder="name@example.com" required />
-          <datalist id="email-history"></datalist>
-          <label for="participant-timezone" style="margin-left:auto;">Display TZ:</label>
-          <select id="participant-timezone" aria-label="Participant display time zone"></select>
-          <button type="button" id="retrieve-availability-btn" title="Retrieve your saved availability">Retrieve</button>
-          <button type="submit" id="save-availability-btn">Save</button>
-          <button type="button" id="clear-selections-btn" title="Clear current selections (no save)">Clear</button>
+          <div class="pc-row">
+            <label for="participant-email">Your Email:</label>
+            <input type="email" id="participant-email" list="email-history" placeholder="name@example.com" required />
+            <datalist id="email-history"></datalist>
+            <div class="actions" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+              <button type="submit" id="save-availability-btn" title="Save your availability">Save</button>
+              <button type="button" id="retrieve-availability-btn" title="Retrieve your saved availability">Retrieve</button>
+              <button type="button" id="clear-selections-btn" title="Clear current selections (no save)">Clear</button>
+            </div>
+          </div>
+          <div class="pc-row" style="margin-top:6px;">
+            <div id="tz-banner" class="tz-banner" aria-live="polite"></div>
+            <label for="participant-timezone" style="margin-left:auto;">Display TZ:</label>
+            <select id="participant-timezone" aria-label="Participant display time zone"></select>
+          </div>
         </div>
 
-        <div id="tz-banner" class="tz-banner" aria-live="polite"></div>
         <p>Click and drag on the calendar to select all times that work for you.</p>
         <div id="calendar-container"></div>
       </form>
@@ -73,6 +79,11 @@
     <!-- RESULTS VIEW -->
     <div id="results-view" class="view" style="display:none;">
       <h2>Poll Results</h2>
+      <div id="results-gate" style="display:none; margin-bottom:12px;">
+        <label for="results-code-input">Enter results code:</label>
+        <input id="results-code-input" type="text" placeholder="Results code" />
+        <button type="button" id="results-code-submit">Unlock</button>
+      </div>
       <div class="participant-controls">
         <div id="results-tz-banner" class="tz-banner" aria-live="polite"></div>
         <label for="results-timezone" style="margin-left:auto;">Display TZ:</label>
