@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const organizerTzSelect = document.getElementById('organizer-timezone');
   const participantTzSelect = document.getElementById('participant-timezone');
   const resultsTzSelect = document.getElementById('results-timezone');
+  const resultsGate = document.getElementById('results-gate');
+  const resultsCodeInput = document.getElementById('results-code-input');
+  const resultsCodeSubmit = document.getElementById('results-code-submit');
 
   const tzBanner = document.getElementById('tz-banner');
   const resultsTzBanner = document.getElementById('results-tz-banner');
@@ -32,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentPollId = null;
   let currentPollData = null;
+  let currentResultsUnlocked = false;
 
   // --- Helper Functions ---
   const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -137,24 +141,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Storage schema v2
+  // polls: {
+  //   [pollId]: {
+  //     lastEmail: string,
+  //     emails: string[]
+  //   }
+  // }
+  const readStorage = () => JSON.parse(localStorage.getItem('polls') || '{}');
+  const writeStorage = (obj) => localStorage.setItem('polls', JSON.stringify(obj));
+
   const upsertEmailHistory = (pollId, email) => {
-    const key = `poll-${pollId}-emails`;
-    const arr = JSON.parse(localStorage.getItem(key) || '[]');
-    if (email && !arr.includes(email)) {
-      arr.push(email);
-      localStorage.setItem(key, JSON.stringify(arr));
+    const store = readStorage();
+    if (!store[pollId]) store[pollId] = { lastEmail: '', emails: [] };
+    const entry = store[pollId];
+    if (email && !entry.emails.includes(email)) {
+      entry.emails.push(email);
     }
+    if (email) entry.lastEmail = email;
+    writeStorage(store);
   };
 
   const loadEmailHistory = (pollId) => {
-    const key = `poll-${pollId}-emails`;
-    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    const store = readStorage();
+    const arr = (store[pollId]?.emails) || [];
     emailHistoryDatalist.innerHTML = '';
     arr.forEach(e => {
       const opt = document.createElement('option');
       opt.value = e;
       emailHistoryDatalist.appendChild(opt);
     });
+  };
+
+  // One-time migration from old per-key storage
+  const migrateStorageIfNeeded = (pollId) => {
+    const store = readStorage();
+    if (store[pollId]) return; // already migrated/created
+    const legacyLast = localStorage.getItem(`poll-${pollId}-email`);
+    const legacyList = JSON.parse(localStorage.getItem(`poll-${pollId}-emails`) || '[]');
+    if (!legacyLast && legacyList.length === 0) return;
+    store[pollId] = { lastEmail: legacyLast || '', emails: Array.from(new Set([...(legacyList||[]), legacyLast].filter(Boolean))) };
+    writeStorage(store);
   };
 
   // --- Calendar (TZ-aware) ---
@@ -302,6 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return response.json();
   };
 
+  // Codes helpers
+  const ensureCodesForPoll = (pollId) => {
+    const key = `poll-${pollId}-codes`;
+    let codes = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!codes) {
+      const participantCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const resultsCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      codes = { participantCode, resultsCode };
+      localStorage.setItem(key, JSON.stringify(codes));
+    }
+    return codes;
+  };
+
   // --- Event Handlers ---
 
   // Create Poll
@@ -341,8 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedEpochs = selectedEpochsFromUI('#calendar-container');
 
     await saveAvailability(currentPollId, email, selectedEpochs, timezone);
-    // Store last-used email and history
-    localStorage.setItem(`poll-${currentPollId}-email`, email);
+    // Store last-used email and history (v2)
     upsertEmailHistory(currentPollId, email);
 
     alert('Your availability has been saved!');
@@ -395,8 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
   copyResultsBtn?.addEventListener('click', () => copyToClipboard(resultsLink.href, copyResultsBtn));
 
   const showPollLink = (pollId) => {
-    const pollUrl = `${window.location.origin}/#/poll/${pollId}`;
-    const resultsUrl = `${window.location.origin}/#/results/${pollId}`;
+    const { participantCode, resultsCode } = ensureCodesForPoll(pollId);
+    const pollUrl = `${window.location.origin}/#/poll/${pollId}/${participantCode}`;
+    const resultsUrl = `${window.location.origin}/#/results/${pollId}/${resultsCode}`;
     pollLink.href = pollUrl;    pollLink.textContent = pollUrl;
     resultsLink.href = resultsUrl; resultsLink.textContent = resultsUrl;
     showView(pollLinkView);
@@ -478,7 +518,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (hash.startsWith('#/poll/')) {
-      currentPollId = hash.substring(7);
+      // format: #/poll/{pollId}/{participantCode?}
+      const parts = hash.split('/');
+      currentPollId = parts[2] || '';
+      const participantCode = parts[3] || '';
+      // Ensure codes exist (local)
+      const { participantCode: expectedCode } = ensureCodesForPoll(currentPollId);
+      if (participantCode && participantCode !== expectedCode) {
+        alert('Invalid participant link.');
+      }
       showView(participantView);
 
       currentPollData = await getPoll(currentPollId);
@@ -487,7 +535,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setBannerText();
 
         // email autofill + history
-        const savedEmail = localStorage.getItem(`poll-${currentPollId}-email`);
+        migrateStorageIfNeeded(currentPollId);
+        const store = readStorage();
+        const savedEmail = store[currentPollId]?.lastEmail || '';
         if (savedEmail) participantEmailInput.value = savedEmail;
         loadEmailHistory(currentPollId);
 
@@ -506,12 +556,36 @@ document.addEventListener('DOMContentLoaded', () => {
         setBannerText();
       }
     } else if (hash.startsWith('#/results/')) {
-      currentPollId = hash.substring(10);
+      // format: #/results/{pollId}/{resultsCode?}
+      const parts = hash.split('/');
+      currentPollId = parts[2] || '';
+      const providedCode = parts[3] || '';
       showView(resultsView);
+      currentResultsUnlocked = false;
+      const codes = ensureCodesForPoll(currentPollId);
+      const expectedCode = codes.resultsCode;
 
-      currentPollData = await getPoll(currentPollId);
-      if (currentPollData) {
-        renderResults(currentPollData);
+      // Gate results if code missing or wrong
+      if (!providedCode || providedCode !== expectedCode) {
+        resultsGate.style.display = 'block';
+        const tryUnlock = async () => {
+          const entered = resultsCodeInput.value.trim();
+          if (entered && entered === expectedCode) {
+            currentResultsUnlocked = true;
+            resultsGate.style.display = 'none';
+            currentPollData = await getPoll(currentPollId);
+            if (currentPollData) renderResults(currentPollData);
+          } else {
+            alert('Invalid code.');
+          }
+        };
+        resultsCodeSubmit.onclick = tryUnlock;
+      } else {
+        currentResultsUnlocked = true;
+        currentPollData = await getPoll(currentPollId);
+        if (currentPollData) {
+          renderResults(currentPollData);
+        }
       }
     } else {
       showView(createPollView);
