@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const organizerTzSelect = document.getElementById('organizer-timezone');
   const participantTzSelect = document.getElementById('participant-timezone');
   const resultsTzSelect = document.getElementById('results-timezone');
+  const notifyDiv = document.getElementById('notification');
   const resultsGate = document.getElementById('results-gate');
   const resultsCodeInput = document.getElementById('results-code-input');
   const resultsCodeSubmit = document.getElementById('results-code-submit');
@@ -36,6 +37,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPollId = null;
   let currentPollData = null;
   let currentResultsUnlocked = false;
+  // Notifications
+  const notify = (message, { level = 'success', durationMs = 1800 } = {}) => {
+    if (!notifyDiv) return;
+    notifyDiv.className = '';
+    notifyDiv.classList.add(level === 'error' ? 'error' : (level === 'info' ? 'info' : ''));
+    notifyDiv.textContent = message;
+    notifyDiv.style.display = 'block';
+    if (durationMs > 0) {
+      clearTimeout(notifyDiv._hideTimer);
+      notifyDiv._hideTimer = setTimeout(() => {
+        notifyDiv.style.display = 'none';
+      }, durationMs);
+    }
+  };
 
   // --- Helper Functions ---
   const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -374,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const email = participantEmailInput.value.trim();
     if (!email) {
-      alert('Please enter your email.');
+      notify('Please enter your email.', { level: 'error', durationMs: 2500 });
       return;
     }
     const timezone = participantTzSelect.value;
@@ -384,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store last-used email and history (v2)
     upsertEmailHistory(currentPollId, email);
 
-    alert('Your availability has been saved!');
+    notify('Your availability has been saved!');
     handleRouting();
   });
 
@@ -399,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
   retrieveBtn.addEventListener('click', async () => {
     const email = participantEmailInput.value.trim();
     if (!email) {
-      alert('Enter your email to retrieve.');
+      notify('Enter your email to retrieve.', { level: 'error', durationMs: 2200 });
       return;
     }
     if (!currentPollId) return;
@@ -410,7 +425,10 @@ document.addEventListener('DOMContentLoaded', () => {
       initialAvailability: init,
       displayTimeZone: participantTzSelect.value
     });
-    alert('Loaded your saved selections (if any).');
+    // Update email history when retrieving too
+    upsertEmailHistory(currentPollId, email);
+    loadEmailHistory(currentPollId);
+    notify('Loaded your saved selections (if any).', { level: 'info' });
   });
 
   // TZ select changes (participant/results) re-render the grids
