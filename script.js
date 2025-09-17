@@ -23,9 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const organizerTzSelect = document.getElementById('organizer-timezone');
   const participantTzSelect = document.getElementById('participant-timezone');
   const resultsTzSelect = document.getElementById('results-timezone');
+  const notifyDiv = document.getElementById('notification');
   const resultsGate = document.getElementById('results-gate');
-  const resultsCodeInput = document.getElementById('results-code-input');
-  const resultsCodeSubmit = document.getElementById('results-code-submit');
 
   const tzBanner = document.getElementById('tz-banner');
   const resultsTzBanner = document.getElementById('results-tz-banner');
@@ -36,6 +35,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPollId = null;
   let currentPollData = null;
   let currentResultsUnlocked = false;
+  // Notifications
+  const notify = (message, { level = 'success', durationMs = 1800 } = {}) => {
+    if (!notifyDiv) return;
+    notifyDiv.className = '';
+    notifyDiv.classList.add(level === 'error' ? 'error' : (level === 'info' ? 'info' : ''));
+    notifyDiv.textContent = message;
+    notifyDiv.style.display = 'block';
+    if (durationMs > 0) {
+      clearTimeout(notifyDiv._hideTimer);
+      notifyDiv._hideTimer = setTimeout(() => {
+        notifyDiv.style.display = 'none';
+      }, durationMs);
+    }
+  };
 
   // --- Helper Functions ---
   const getViewerTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -329,17 +342,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return response.json();
   };
 
-  // Codes helpers
-  const ensureCodesForPoll = (pollId) => {
-    const key = `poll-${pollId}-codes`;
-    let codes = JSON.parse(localStorage.getItem(key) || 'null');
-    if (!codes) {
-      const participantCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-      const resultsCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-      codes = { participantCode, resultsCode };
-      localStorage.setItem(key, JSON.stringify(codes));
+  // Codes helpers - now handled server-side
+  const ensureCodesForPoll = async (pollId) => {
+    // For backward compatibility, try to get codes from server
+    if (currentPollData && currentPollData.participantCode && currentPollData.resultsCode) {
+      return {
+        participantCode: currentPollData.participantCode,
+        resultsCode: currentPollData.resultsCode
+      };
     }
-    return codes;
+    
+    // If poll data doesn't have codes (old polls), generate a generic code
+    return {
+      participantCode: 'LEGACY',
+      resultsCode: 'LEGACY'
+    };
   };
 
   // --- Event Handlers ---
@@ -365,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const response = await createPoll(pollData);
     if (response.pollId) {
       currentPollId = response.pollId;
-      showPollLink(response.pollId);
+      showPollLink(response.pollId, response.participantCode, response.resultsCode);
     }
   });
 
@@ -374,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const email = participantEmailInput.value.trim();
     if (!email) {
-      alert('Please enter your email.');
+      notify('Please enter your email.', { level: 'error', durationMs: 2500 });
       return;
     }
     const timezone = participantTzSelect.value;
@@ -384,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store last-used email and history (v2)
     upsertEmailHistory(currentPollId, email);
 
-    alert('Your availability has been saved!');
+    notify('Your availability has been saved!');
     handleRouting();
   });
 
@@ -399,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
   retrieveBtn.addEventListener('click', async () => {
     const email = participantEmailInput.value.trim();
     if (!email) {
-      alert('Enter your email to retrieve.');
+      notify('Enter your email to retrieve.', { level: 'error', durationMs: 2200 });
       return;
     }
     if (!currentPollId) return;
@@ -410,7 +427,10 @@ document.addEventListener('DOMContentLoaded', () => {
       initialAvailability: init,
       displayTimeZone: participantTzSelect.value
     });
-    alert('Loaded your saved selections (if any).');
+    // Update email history when retrieving too
+    upsertEmailHistory(currentPollId, email);
+    loadEmailHistory(currentPollId);
+    notify('Loaded your saved selections (if any).', { level: 'info' });
   });
 
   // TZ select changes (participant/results) re-render the grids
@@ -433,8 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
   copyLinkBtn?.addEventListener('click', () => copyToClipboard(pollLink.href, copyLinkBtn));
   copyResultsBtn?.addEventListener('click', () => copyToClipboard(resultsLink.href, copyResultsBtn));
 
-  const showPollLink = (pollId) => {
-    const { participantCode, resultsCode } = ensureCodesForPoll(pollId);
+  const showPollLink = (pollId, participantCode, resultsCode) => {
     const pollUrl = `${window.location.origin}/#/poll/${pollId}/${participantCode}`;
     const resultsUrl = `${window.location.origin}/#/results/${pollId}/${resultsCode}`;
     pollLink.href = pollUrl;    pollLink.textContent = pollUrl;
@@ -522,11 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const parts = hash.split('/');
       currentPollId = parts[2] || '';
       const participantCode = parts[3] || '';
-      // Ensure codes exist (local)
-      const { participantCode: expectedCode } = ensureCodesForPoll(currentPollId);
-      if (participantCode && participantCode !== expectedCode) {
-        alert('Invalid participant link.');
-      }
+      
       showView(participantView);
 
       currentPollData = await getPoll(currentPollId);
@@ -561,29 +576,18 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPollId = parts[2] || '';
       const providedCode = parts[3] || '';
       showView(resultsView);
-      currentResultsUnlocked = false;
-      const codes = ensureCodesForPoll(currentPollId);
-      const expectedCode = codes.resultsCode;
-
-      // Gate results if code missing or wrong
-      if (!providedCode || providedCode !== expectedCode) {
-        resultsGate.style.display = 'block';
-        const tryUnlock = async () => {
-          const entered = resultsCodeInput.value.trim();
-          if (entered && entered === expectedCode) {
-            currentResultsUnlocked = true;
-            resultsGate.style.display = 'none';
-            currentPollData = await getPoll(currentPollId);
-            if (currentPollData) renderResults(currentPollData);
-          } else {
-            alert('Invalid code.');
-          }
-        };
-        resultsCodeSubmit.onclick = tryUnlock;
-      } else {
-        currentResultsUnlocked = true;
-        currentPollData = await getPoll(currentPollId);
-        if (currentPollData) {
+      currentResultsUnlocked = true;
+      
+      currentPollData = await getPoll(currentPollId);
+      if (currentPollData) {
+        // Check if provided code matches (for new polls) or allow legacy access
+        const expectedCode = currentPollData.resultsCode || 'LEGACY';
+        if (providedCode && providedCode !== expectedCode && providedCode !== 'LEGACY') {
+          // Invalid code provided
+          resultsGate.style.display = 'block';
+        } else {
+          // Valid code or legacy access
+          resultsGate.style.display = 'none';
           renderResults(currentPollData);
         }
       }

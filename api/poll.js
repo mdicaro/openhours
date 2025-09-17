@@ -9,6 +9,12 @@ export default async function handler(req, res) {
     // CHANGE: Destructure all necessary fields from the body
     const { startDate, endDate, startTime, endTime, baseTimeZone } = req.body;
     const newPollId = `poll-${Date.now()}`;
+    
+    // Generate codes for participant and results access
+    const generateCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+    const participantCode = generateCode();
+    const resultsCode = generateCode();
+    
     const newPoll = {
       startDate,
       endDate,
@@ -17,11 +23,17 @@ export default async function handler(req, res) {
       baseTimeZone: baseTimeZone || null,
       timeZones: {},
       availabilities: {},
+      participantCode,
+      resultsCode,
       createdAt: new Date().toISOString()
     };
 
     await redis.set(newPollId, newPoll);
-    res.status(201).json({ pollId: newPollId });
+    res.status(201).json({ 
+      pollId: newPollId,
+      participantCode,
+      resultsCode
+    });
 
   } else if (req.method === 'PUT') {
     const { pollId, email, availability, timezone } = req.body;

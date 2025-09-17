@@ -8,6 +8,7 @@
 </head>
 <body>
   <main id="app-container">
+    <div id="notification" aria-live="polite" role="status" style="display:none;"></div>
     <!-- CREATE POLL -->
     <div id="create-poll-view" class="view">
       <h2>Create a New Poll</h2>
@@ -80,9 +81,7 @@
     <div id="results-view" class="view" style="display:none;">
       <h2>Poll Results</h2>
       <div id="results-gate" style="display:none; margin-bottom:12px;">
-        <label for="results-code-input">Enter results code:</label>
-        <input id="results-code-input" type="text" placeholder="Results code" />
-        <button type="button" id="results-code-submit">Unlock</button>
+        <p>Invalid results link. Please check the URL and try again.</p>
       </div>
       <div class="participant-controls">
         <div id="results-tz-banner" class="tz-banner" aria-live="polite"></div>
