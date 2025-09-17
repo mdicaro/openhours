@@ -19,6 +19,18 @@ body {
     max-width: 900px;
 }
 
+#notification {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: #e9f6ec;
+    color: #0f5132;
+}
+
+#notification.error { background: #fdecea; color: #842029; border-color: #f5c2c7; }
+#notification.info { background: #e7f1ff; color: #084298; border-color: #b6d4fe; }
+
 header {
     text-align: center;
     margin-bottom: 30px;
@@ -238,8 +250,19 @@ button:hover {
   margin-bottom: 10px;
 }
 .participant-controls label { margin-bottom: 0; }
-.participant-controls #participant-email { flex: 1 1 240px; margin-bottom: 0; }
+.participant-controls #participant-email { flex: 1 1 280px; margin-bottom: 0; }
 .participant-controls button { margin-bottom: 0; }
+.participant-controls .pc-row { width: 100%; display: flex; align-items: center; gap: 10px; }
+.participant-controls .pc-row .actions button { height: 42px; }
+
+/* Make inputs, selects, and buttons visually consistent */
+input[type="email"], input[type="text"], select, button, .tz-banner {
+  border-radius: 8px;
+}
+input[type="email"], input[type="text"], select {
+  height: 42px;
+}
+button { height: 42px; }
 
 select {
   padding: 10px;
