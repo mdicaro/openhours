@@ -436,10 +436,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const count = availabilityCounts[key] || 0;
       const pct = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
       const emails = slotToEmailsMap[key] || [];
+      const slotUtc = new Date(Number(key) * HALF_HOUR_MS);
+      const displayTimeZone = resultsTzSelect.value;
+      const baseTz = pollData.baseTimeZone || 'UTC';
+      const displayTime = fmtTimeInZone(slotUtc, displayTimeZone);
+      const organizerTime = fmtTimeInZone(slotUtc, baseTz);
+
+      let titleText = `${displayTime} (${displayTimeZone})`;
+      if (displayTimeZone !== baseTz) {
+        titleText += `\n${organizerTime} (Organizer's Time: ${baseTz})`;
+      }
 
       // append counts
       if (count > 0) slot.textContent = count;
-      slot.title = `${slot.title}\n\n${count} available${count !== 1 ? '' : ''}\n${emails.join('\n')}`;
+      slot.title = `${titleText}\n\n${count} available\n${emails.join('\n')}`;
 
       if (pct === 100) slot.classList.add('level-5');
       else if (pct >= 75) slot.classList.add('level-4');
